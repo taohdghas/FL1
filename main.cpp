@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include "KamataEngine.h"
+#include "SceneManager.h"
 
 using namespace KamataEngine;
 
@@ -12,6 +13,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// DirectXCommonインスタンス取得
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 
+	//SceneManager
+	SceneManager sceneManager;
+	sceneManager.Initialize();
+
 	//メインループ
 	while (true) {
 		//エンジン更新
@@ -19,8 +24,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 			break;
 		}
 
+		// シーン更新
+		sceneManager.Update();
+
 		//描画開始
 		dxCommon->PreDraw();
+
+		//シーン描画
+		sceneManager.Draw();
 
 		// 描画終了
 		dxCommon->PostDraw();
@@ -28,6 +39,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	//エンジン終了
 	KamataEngine::Finalize();
+	// シーン終了
+	sceneManager.Finalize();
 
 	return 0;
 }
