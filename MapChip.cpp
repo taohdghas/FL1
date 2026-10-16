@@ -1,3 +1,4 @@
+
 #include "MapChip.h"
 
 #include <fstream>
@@ -5,112 +6,209 @@
 #include <string>
 #include <vector>
 
-using namespace KamataEngine;
-
+// デストラクタ
 MapChip::~MapChip() { Finalize(); }
 
+// 初期化
 bool MapChip::Initialize(const std::string& csvPath, float blockSize) {
-	// 以前のマップがあれば解放する
-	Finalize();
-
 	blockSize_ = blockSize;
+	return LoadCSV(csvPath);
+}
 
-	// CSVファイルを開く
+// 更新
+void MapChip::Update() {
+	
+}
+
+// 描画
+void MapChip::Draw(const Camera& camera) {
+	for (auto& row : blocks_) {
+		for (auto& block : row) {
+			if (block) {
+				block->Draw(camera);
+			}
+		}
+	}
+}
+
+// 終了処理
+void MapChip::Finalize() {
+	blocks_.clear();
+	mapData_.clear();
+}
+
+// CSV読み込み
+bool MapChip::LoadCSV(const std::string& csvPath) {
 	std::ifstream file(csvPath);
 
 	if (!file.is_open()) {
-		OutputDebugStringA(("MapChip: CSVを開けませんでした: " + csvPath + "\n").c_str());
 		return false;
 	}
 
-	// CSVの内容を一時的に保存する
-	std::vector<std::vector<int>> mapData;
-
+	// 読み込みに失敗しても現在のマップを維持できるよう、
+	// 一時的な配列に読み込む
+	std::vector<std::vector<int>> newMapData;
 	std::string line;
 
 	while (std::getline(file, line)) {
-		// 空行は無視する
+		// 空行は無視
 		if (line.empty()) {
 			continue;
 		}
 
-		// Windows形式の改行で残る'\r'を取り除く
-		if (!line.empty() && line.back() == '\r') {
-			line.pop_back();
-		}
-
-		std::vector<int> row;
-		std::stringstream stream(line);
+		std::vector<int> rowData;
+		std::stringstream ss(line);
 		std::string cell;
 
-		while (std::getline(stream, cell, ',')) {
-			try {
-				size_t parsedLength = 0;
-				int value = std::stoi(cell, &parsedLength);
+		while (std::getline(ss, cell, ',')) {
+			// CSVの値を整数に変換
+			std::stringstream cellStream(cell);
+			int value = -1;
+			char extra = '\0';
 
-				// 数字以外が混ざっていたらエラー
-				if (parsedLength != cell.size()) {
-					return false;
-				}
-
-				// 今回は0と1だけを使用する
-				if (value != 0 && value != 1) {
-					return false;
-				}
-
-				row.push_back(value);
-			} catch (...) {
+			if (!(cellStream >> value) || (cellStream >> extra)) {
 				return false;
 			}
+
+			// 0: 空きマス、1: ブロック
+			if (value != 0 && value != 1) {
+				return false;
+			}
+
+			rowData.push_back(value);
 		}
 
-		if (!row.empty()) {
-			mapData.push_back(row);
+		if (rowData.empty()) {
+			return false;
 		}
+
+		// 全行の列数が一致しているか確認
+		if (!newMapData.empty() && rowData.size() != newMapData[0].size()) {
+			return false;
+		}
+
+		newMapData.push_back(rowData);
 	}
 
 	file.close();
 
-	if (mapData.empty()) {
+	if (newMapData.empty()) {
 		return false;
 	}
 
-	// CSVの行・列に合わせてブロックを生成する
-	const size_t rowCount = mapData.size();
+	// CSV読み込み成功。マップデータを更新
+	mapData_ = std::move(newMapData);
 
-	for (size_t row = 0; row < rowCount; ++row) {
-		for (size_t column = 0; column < mapData[row].size(); ++column) {
-			// 0は空白なので何も生成しない
-			if (mapData[row][column] == 0) {
-				continue;
-			}
+	// CSV読み込み時はマップ全体を再構築
+	blocks_.clear();
+	blocks_.resize(mapData_.size());
 
-			auto block = std::make_unique<Block>();
+	for (size_t row = 0; row < mapData_.size(); ++row) {
+		blocks_[row].resize(mapData_[row].size());
 
-			// CSVの上の行を、ゲーム画面でも上側に配置する
-			Vector3 position = {static_cast<float>(column) * blockSize_, static_cast<float>(rowCount - 1 - row) * blockSize_, 0.0f};
-
-			block->Initialize(position);
-
-			blocks_.push_back(std::move(block));
+		for (size_t column = 0; column < mapData_[row].size(); ++column) {
+			UpdateBlock(static_cast<int>(row), static_cast<int>(column));
 		}
 	}
 
 	return true;
 }
 
-void MapChip::Update() {
-	for (const auto& block : blocks_) {
-		block->Update();
+// CSV保存
+bool MapChip::SaveCSV(const std::string& csvPath) const {
+	std::ofstream file(csvPath);
+
+	if (!file.is_open()) {
+		return false;
 	}
+
+	for (size_t row = 0; row < mapData_.size(); ++row) {
+		for (size_t column = 0; column < mapData_[row].size(); ++column) {
+			file << mapData_[row][column];
+
+			if (column + 1 < mapData_[row].size()) {
+				file << ',';
+			}
+		}
+
+		file << '\n';
+	}
+
+	return file.good();
 }
 
-void MapChip::Draw(const Camera& camera) {
-	for (const auto& block : blocks_) {
-		block->Draw(camera);
+// 指定したマスのブロックだけを更新
+void MapChip::UpdateBlock(int row, int column) {
+	// ブロックを置かない場合
+	if (mapData_[row][column] == 0) {
+		blocks_[row][column].reset();
+		return;
 	}
+
+	// すでにブロックがある場合は何もしない
+	if (blocks_[row][column]) {
+		return;
+	}
+
+	// マスの位置を計算
+	Vector3 position{static_cast<float>(column) * blockSize_, static_cast<float>(static_cast<int>(mapData_.size()) - 1 - row) * blockSize_, 0.0f};
+
+	// 変更されたマスのブロックだけ生成
+	blocks_[row][column] = std::make_unique<Block>();
+	blocks_[row][column]->Initialize(position);
 }
 
-void MapChip::Finalize() { blocks_.clear(); }
+// マスの値を変更
+bool MapChip::SetCell(int row, int column, int value) {
+	// 範囲チェック
+	if (row < 0 || row >= static_cast<int>(mapData_.size())) {
+		return false;
+	}
 
-size_t MapChip::GetBlockCount() const { return blocks_.size(); }
+	if (column < 0 || column >= static_cast<int>(mapData_[row].size())) {
+		return false;
+	}
+
+	// 0か1以外は受け付けない
+	if (value != 0 && value != 1) {
+		return false;
+	}
+
+	// 値が変わらなければ何もしない
+	if (mapData_[row][column] == value) {
+		return true;
+	}
+
+	// マップデータを変更
+	mapData_[row][column] = value;
+
+	// 変更されたマスだけ更新
+	UpdateBlock(row, column);
+
+	return true;
+}
+
+// マスの値を取得
+int MapChip::GetCell(int row, int column) const {
+	if (row < 0 || row >= static_cast<int>(mapData_.size())) {
+		return 0;
+	}
+
+	if (column < 0 || column >= static_cast<int>(mapData_[row].size())) {
+		return 0;
+	}
+
+	return mapData_[row][column];
+}
+
+// 行数を取得
+int MapChip::GetRowCount() const { return static_cast<int>(mapData_.size()); }
+
+// 列数を取得
+int MapChip::GetColumnCount() const {
+	if (mapData_.empty()) {
+		return 0;
+	}
+
+	return static_cast<int>(mapData_[0].size());
+}

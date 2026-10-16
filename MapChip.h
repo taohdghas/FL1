@@ -1,33 +1,40 @@
 #pragma once
 #include <KamataEngine.h>
+using namespace KamataEngine;
+
+#include "Block.h"
 #include <memory>
 #include <string>
 #include <vector>
-#include "Block.h"
-
-using namespace KamataEngine;
 
 class MapChip {
 public:
 	MapChip() = default;
 	~MapChip();
 
-	// CSVを読み込んでマップを作成する
-	// csvPath : CSVファイルのパス
-	// blockSize : ブロック同士の間隔
-	// 成功したらtrue、失敗したらfalse
-	bool Initialize(const std::string& csvPath, float blockSize = 1.0f);
-
+	bool Initialize(const std::string& csvPath, float blockSize = 2.0f);
 	void Update();
 	void Draw(const Camera& camera);
-
-	// マップのブロックをすべて解放する
 	void Finalize();
 
-	// 生成されたブロック数を取得する
-	size_t GetBlockCount() const;
+	bool SaveCSV(const std::string& csvPath) const;
+	bool LoadCSV(const std::string& csvPath);
+
+	bool SetCell(int row, int column, int value);
+	int GetCell(int row, int column) const;
+
+	int GetRowCount() const;
+	int GetColumnCount() const;
 
 private:
-	std::vector<std::unique_ptr<Block>> blocks_;
-	float blockSize_ = 1.0f;
+	// 指定したマスのブロックだけを更新する
+	void UpdateBlock(int row, int column);
+
+	std::vector<std::vector<int>> mapData_;
+
+	// 各マスに対応するブロック
+	// nullptrならブロックなし
+	std::vector<std::vector<std::unique_ptr<Block>>> blocks_;
+
+	float blockSize_ = 2.0f;
 };
