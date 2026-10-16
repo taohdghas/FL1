@@ -37,10 +37,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		dxCommon->PostDraw();
 	}
 
-	//エンジン終了
-	KamataEngine::Finalize();
 	// シーン終了
 	sceneManager.Finalize();
+	// エンジン終了
+	KamataEngine::Finalize();
 
 	return 0;
 }

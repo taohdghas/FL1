@@ -5,7 +5,7 @@
 
 //初期化
 void SceneManager::Initialize() {
-	currentScene_ = CreateScene(SceneType::Title); 
+	currentScene_ = CreateScene(SceneType::Game); 
 	 
 	if (currentScene_) {
 		currentScene_->Initialize();
