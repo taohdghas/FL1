@@ -59,7 +59,6 @@ void GameScene::DrawMapEditor() {
 	if (ImGui::InputText("##CSVPath", csvPathBuffer_, sizeof(csvPathBuffer_))) {
 		csvPath_ = csvPathBuffer_;
 	}
-
 	// CSV保存
 	ImGui::SameLine();
 
