@@ -18,6 +18,11 @@ public:
 private:
 	// マップエディタの描画
 	void DrawMapEditor();
+	//カメラ移動(デバック用)
+	void UpdateCamera();
+	//ImGui更新
+	void UpdateImGui();
+
 private:
 	Camera camera_;
 	MapChip mapChip_;
