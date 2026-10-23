@@ -6,7 +6,6 @@ using namespace KamataEngine;
 #include <string>
 
 #include "MapChip.h"
-#include "Player.h"
 #include "Scene.h"
 
 class GameScene : public Scene {
@@ -19,10 +18,14 @@ public:
 private:
 	// マップエディタの描画
 	void DrawMapEditor();
+	// カメラ移動(デバック用)
+	void UpdateCamera();
+	// ImGui更新
+	void UpdateImGui();
+
 private:
 	Camera camera_;
 	MapChip mapChip_;
-	Player player_;
 
 	// true：配置、false：削除
 	bool isPlaceMode_ = true;
