@@ -1,11 +1,12 @@
 #pragma once
-
 #include <KamataEngine.h>
 using namespace KamataEngine;
 
 #include <string>
 #include "Player.h"
 #include "MapChip.h"
+#include "UI.h"
+
 #include "Scene.h"
 
 class GameScene : public Scene {
@@ -26,8 +27,9 @@ private:
 private:
 	Camera camera_;
 	MapChip mapChip_;
+	// ポーズメニュー
+	std::unique_ptr<UI> ui_;
 	Player player_;
-
 	// true：配置、false：削除
 	bool isPlaceMode_ = true;
 
