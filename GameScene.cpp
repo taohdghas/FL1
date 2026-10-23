@@ -13,6 +13,9 @@ void GameScene::Initialize() {
 	// CSVパスを入力欄に設定
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
 
+	// プレイヤーを初期化（仮の地面の高さはY=0.5）
+	player_.Initialize({0.0f, 0.5f, 0.0f});
+
 	// マップを読み込む
 	if (mapChip_.Initialize(csvPath_, 2.0f)) {
 		message_ = "Map loaded.";
@@ -25,6 +28,7 @@ void GameScene::Finalize() { mapChip_.Finalize(); }
 
 void GameScene::Update() {
 	mapChip_.Update();
+	player_.Update();
 
 	// マップエディタ
 	DrawMapEditor();
@@ -34,6 +38,7 @@ void GameScene::Draw() {
 	Model::PreDraw();
 
 	mapChip_.Draw(camera_);
+	player_.Draw(camera_);
 
 	Model::PostDraw();
 }
