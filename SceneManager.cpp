@@ -5,7 +5,7 @@
 
 //初期化
 void SceneManager::Initialize() {
-	currentScene_ = CreateScene(SceneType::Game); 
+	currentScene_ = CreateScene(SceneType::Title); 
 	 
 	if (currentScene_) {
 		currentScene_->Initialize();
@@ -19,11 +19,28 @@ void SceneManager::Finalize() {
 	}
 }
 //更新
-void SceneManager::Update() { if (currentScene_) { currentScene_->Update(); } }
+void SceneManager::Update() {
+	if (currentScene_) {
+		currentScene_->Update();
+
+		// ★シーン遷移要求があるか？
+		SceneType next = currentScene_->GetNextScene();
+		if (next != SceneType::None) {
+
+			// 現在のシーンを終了
+			currentScene_->Finalize();
+			currentScene_.reset();
+
+			// 新しいシーンを生成
+			currentScene_ = CreateScene(next);
+			currentScene_->Initialize();
+		}
+	}
+}
 // 描画
 void SceneManager::Draw() { if (currentScene_) { currentScene_->Draw(); } }
 
-// シーン生成0
+// シーン生成
 std::unique_ptr<Scene> SceneManager::CreateScene(SceneType sceneType) {
 	switch (sceneType) {
 	case SceneType::Title:

@@ -1,12 +1,7 @@
 #pragma once
 #include "Scene.h"
+#include "SceneType.h"
 #include <memory>
-
-enum class SceneType {
-	Title,
-	Select,
-	Game
-};
 
 class SceneManager {
 public:

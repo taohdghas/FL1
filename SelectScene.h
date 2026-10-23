@@ -1,5 +1,6 @@
 #pragma once
 #include "Scene.h"
+#include "KamataEngine.h"
 
 class SelectScene : public Scene {
 public:
@@ -7,4 +8,10 @@ public:
 	void Finalize() override;
 	void Update() override;
 	void Draw() override;
+	
+	// 次のシーンへ進む
+	SceneType GetNextScene() override;
+
+private:
+	SceneType nextScene_ = SceneType::None;
 };
