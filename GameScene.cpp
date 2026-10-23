@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "SceneManager.h"
 #include <cstring>
 #include <imgui.h>
 
@@ -30,10 +31,26 @@ void GameScene::Finalize() {
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
-	// UI更新
-	ui_->Update();
 	// マップエディタ
 	DrawMapEditor();
+	// UI更新
+	ui_->Update();
+
+	switch (ui_->GetPauseMenuAction()) {
+	case UI::PauseMenuAction::ShowControls:
+		message_ = "Show Controls selected.";
+		break;
+	case UI::PauseMenuAction::ToSelect:
+		sceneManager_->ChangeScene(SceneType::Select);
+		break;
+	case UI::PauseMenuAction::ToTitle:
+		sceneManager_->ChangeScene(SceneType::Title);
+		break;
+	case UI::PauseMenuAction::None:
+		break;
+	default:
+		break;
+	}
 
 #ifdef _DEBUG
 	// UIデバック
@@ -43,6 +60,11 @@ void GameScene::Update() {
 	// ImGui更新
 	UpdateImGui();
 #endif
+
+	// ポーズメニューが表示されているならスキップ
+	if (ui_->IsPauseMenuActive()) {
+		return;
+	}
 
 	// カメラ行列を更新
 	camera_.UpdateMatrix();
