@@ -19,7 +19,6 @@ public:
 private:
 	// マップエディタの描画
 	void DrawMapEditor();
-
 private:
 	Camera camera_;
 	MapChip mapChip_;
