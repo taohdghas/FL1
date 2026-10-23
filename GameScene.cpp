@@ -1,6 +1,5 @@
-
 #include "GameScene.h"
-
+#include "SceneManager.h"
 #include <cstring>
 #include <imgui.h>
 
@@ -18,22 +17,54 @@ void GameScene::Initialize() {
 	} else {
 		message_ = "Failed to load map.";
 	}
+
+	// ポーズメニュー
+	ui_ = std::make_unique<UI>();
+	ui_->Initialize();
 }
 
-void GameScene::Finalize() { mapChip_.Finalize(); }
+void GameScene::Finalize() {
+	mapChip_.Finalize(); // マップチップ
+	ui_->Finalize();     // ポーズメニュー
+}
 
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
 	// マップエディタ
 	DrawMapEditor();
+	// UI更新
+	ui_->Update();
 
-	#ifdef _DEBUG
+	switch (ui_->GetPauseMenuAction()) {
+	case UI::PauseMenuAction::ShowControls:
+		message_ = "Show Controls selected.";
+		break;
+	case UI::PauseMenuAction::ToSelect:
+		sceneManager_->ChangeScene(SceneType::Select);
+		break;
+	case UI::PauseMenuAction::ToTitle:
+		sceneManager_->ChangeScene(SceneType::Title);
+		break;
+	case UI::PauseMenuAction::None:
+		break;
+	default:
+		break;
+	}
+
+#ifdef _DEBUG
+	// UIデバック
+	ui_->Debug();
 	// カメラ移動(デバック用)
 	UpdateCamera();
 	// ImGui更新
 	UpdateImGui();
 #endif
+
+	// ポーズメニューが表示されているならスキップ
+	if (ui_->IsPauseMenuActive()) {
+		return;
+	}
 
 	// カメラ行列を更新
 	camera_.UpdateMatrix();
@@ -46,8 +77,16 @@ void GameScene::Draw() {
 	mapChip_.Draw(camera_);
 
 	Model::PostDraw();
+
+	Sprite::PreDraw();
+
+	// ポーズメニュー
+	ui_->Draw();
+
+	Sprite::PostDraw();
 }
 
+// マップエディタの描画
 void GameScene::DrawMapEditor() {
 #ifdef _DEBUG
 	ImGui::Begin("Map Editor");
@@ -139,6 +178,7 @@ void GameScene::DrawMapEditor() {
 	ImGui::End();
 #endif
 }
+
 // カメラ移動(デバック用)
 void GameScene::UpdateCamera() {
 	// マウス中ボタンを押しながらドラッグするとカメラを移動
@@ -161,9 +201,10 @@ void GameScene::UpdateCamera() {
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
 }
-//ImGui更新
-void GameScene::UpdateImGui() { 
-	//カメラ座標表示
+// ImGui更新
+void GameScene::UpdateImGui() {
+#ifdef _DEBUG
+	// カメラ座標表示
 	ImGui::Begin("Camera Info");
 	ImGui::Text("Camera Position");
 	ImGui::Separator();
@@ -174,10 +215,11 @@ void GameScene::UpdateImGui() {
 	ImGui::Text("Z: %.2f", camera_.translation_.z);
 
 	ImGui::Separator();
-		
+
 	// カメラ移動用
 	bool changed = false;
-	if (ImGui::DragFloat3("Translation", &camera_.translation_.x, 0.1f, -1000.0f, 1000.0f, "%.2f")) changed = true;
+	if (ImGui::DragFloat3("Translation", &camera_.translation_.x, 0.1f, -1000.0f, 1000.0f, "%.2f"))
+		changed = true;
 
 	// スライダーで変化があればカメラ行列を即時更新
 	if (changed) {
@@ -186,5 +228,5 @@ void GameScene::UpdateImGui() {
 	}
 
 	ImGui::End();
-
+#endif
 }
