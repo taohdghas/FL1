@@ -8,6 +8,7 @@ void GameScene::Initialize() {
 	// カメラの初期化
 	camera_.Initialize();
 	camera_.translation_ = {20.0f, 10.0f, -30.0f};
+	camera_.UpdateMatrix();
 
 	// CSVパスを入力欄に設定
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
@@ -28,6 +29,7 @@ void GameScene::Finalize() { mapChip_.Finalize(); }
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
+	player_.Update();
 
 	// マップエディタ
 	DrawMapEditor();

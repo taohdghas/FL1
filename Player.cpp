@@ -1,6 +1,5 @@
 #include "Player.h"
 #include "MyMath.h"
-
 #include "KamataEngine.h"
 #include <Windows.h>
 
@@ -24,8 +23,7 @@ void Player::Initialize(const Vector3& position) {
 	worldTransform_.Initialize();
 	worldTransform_.scale_ = {0.8f, 0.8f, 0.8f};
 	worldTransform_.translation_ = position_;
-	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(
-		worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
+	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
 
 	isInitialized_ = true;
@@ -66,8 +64,7 @@ void Player::Update() {
 	}
 
 	worldTransform_.translation_ = position_;
-	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(
-		worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
+	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
 }
 
@@ -78,6 +75,4 @@ void Player::Draw(const Camera& camera) {
 	model_->Draw(worldTransform_, camera);
 }
 
-const Vector3& Player::GetPosition() const {
-	return position_;
-}
+const Vector3& Player::GetPosition() const { return position_; }

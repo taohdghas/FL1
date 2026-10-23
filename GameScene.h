@@ -4,7 +4,7 @@
 using namespace KamataEngine;
 
 #include <string>
-
+#include "Player.h"
 #include "MapChip.h"
 #include "Scene.h"
 
@@ -26,6 +26,7 @@ private:
 private:
 	Camera camera_;
 	MapChip mapChip_;
+	Player player_;
 
 	// true：配置、false：削除
 	bool isPlaceMode_ = true;
