@@ -19,7 +19,6 @@ public:
 	void Debug();
 	// スプライトがクリックされたか
 	bool IsSpriteClicked(Sprite* sprite);
-
 	// 選択結果リセット
 	void ResetPauseMenuAction() { pauseMenuAction_ = PauseMenuAction::None; }
 	// ポーズメニューが表示されているか
