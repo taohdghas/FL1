@@ -22,7 +22,7 @@ void GameScene::Initialize() {
 	ui_ = std::make_unique<UI>();
 	ui_->Initialize();
 }
-
+//終了
 void GameScene::Finalize() {
 	mapChip_.Finalize(); // マップチップ
 	ui_->Finalize();     // ポーズメニュー
