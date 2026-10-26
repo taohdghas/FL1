@@ -3,6 +3,7 @@
 using namespace KamataEngine;
 
 #include <string>
+#include "Player.h"
 #include "MapChip.h"
 #include "UI.h"
 
@@ -18,9 +19,9 @@ public:
 private:
 	// マップエディタの描画
 	void DrawMapEditor();
-	//カメラ移動(デバック用)
+	// カメラ移動(デバック用)
 	void UpdateCamera();
-	//ImGui更新
+	// ImGui更新
 	void UpdateImGui();
 
 private:
@@ -28,7 +29,7 @@ private:
 	MapChip mapChip_;
 	// ポーズメニュー
 	std::unique_ptr<UI> ui_;
-
+	Player player_;
 	// true：配置、false：削除
 	bool isPlaceMode_ = true;
 

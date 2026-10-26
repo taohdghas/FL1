@@ -7,9 +7,13 @@ void GameScene::Initialize() {
 	// カメラの初期化
 	camera_.Initialize();
 	camera_.translation_ = {20.0f, 10.0f, -30.0f};
+	camera_.UpdateMatrix();
 
 	// CSVパスを入力欄に設定
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
+
+	// プレイヤーを初期化（仮の地面の高さはY=0.5）
+	player_.Initialize({0.0f, 0.5f, 0.0f});
 
 	// マップを読み込む
 	if (mapChip_.Initialize(csvPath_, 2.0f)) {
@@ -22,15 +26,17 @@ void GameScene::Initialize() {
 	ui_ = std::make_unique<UI>();
 	ui_->Initialize();
 }
-
+//終了
 void GameScene::Finalize() {
 	mapChip_.Finalize(); // マップチップ
 	ui_->Finalize();     // ポーズメニュー
 }
-
+//更新
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
+	player_.Update();
+
 	// マップエディタ
 	DrawMapEditor();
 	// UI更新
@@ -75,6 +81,7 @@ void GameScene::Draw() {
 	Model::PreDraw();
 
 	mapChip_.Draw(camera_);
+	player_.Draw(camera_);
 
 	Model::PostDraw();
 
