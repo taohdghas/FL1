@@ -31,7 +31,7 @@ void GameScene::Finalize() {
 	mapChip_.Finalize(); // マップチップ
 	ui_->Finalize();     // ポーズメニュー
 }
-
+//更新
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
