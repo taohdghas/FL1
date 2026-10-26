@@ -24,11 +24,36 @@ void GameScene::Initialize() {
 	// ポーズメニュー
 	ui_ = std::make_unique<UI>();
 	ui_->Initialize();
+	// リセットゲージスプライト
+	resetMeterSprite_ = Sprite::Create(TextureManager::Load("resetmeter.png"), resetMeterPosition_);
+	resetMeterSprite_->SetSize(resetMeterSize_);
+	// 数字スプライト
+	//   リセット進行率の数字スプライトを作成
+	for (int digitPosition = 0; digitPosition < 3; ++digitPosition) {
+		for (int number = 0; number < 10; ++number) {
+			std::string texturePath = "0.png";
+			texturePath = std::to_string(number) + ".png";
+			resetPercentSprites_[digitPosition][number] = Sprite::Create(TextureManager::Load(texturePath), resetPercentPosition_);
+			resetPercentSprites_[digitPosition][number]->SetSize(resetPercentDigitSize_);
+		}
+	}
+	//%記号
+	resetPercentSymbolSprite_ = Sprite::Create(TextureManager::Load("percent.png"), resetPercentPosition_);
+	resetPercentSymbolSprite_->SetSize(resetPercentSymbolSize_);
 }
 // 終了
 void GameScene::Finalize() {
-	mapChip_.Finalize(); // マップチップ
-	ui_->Finalize();     // ポーズメニュー
+	mapChip_.Finalize();      // マップチップ
+	ui_->Finalize();          // ポーズメニュー
+	delete resetMeterSprite_; // リセットゲージスプライト
+	// 数字スプライトの削除
+	for (int digitPosition = 0; digitPosition < 3; ++digitPosition) {
+		for (int number = 0; number < 10; ++number) {
+			delete resetPercentSprites_[digitPosition][number];
+			resetPercentSprites_[digitPosition][number] = nullptr;
+		}
+	}
+	delete resetPercentSymbolSprite_; //%スプライト
 }
 
 void GameScene::Update() {
@@ -89,23 +114,67 @@ void GameScene::Draw() {
 
 	// ポーズメニュー
 	ui_->Draw();
+	// リセット
+	if (resetHoldTime_ > 0.0f && resetMeterSprite_) {
+		// リセットゲージ
+		resetMeterSprite_->Draw();
+		// 進行率を文字列に変換
+		std::string percentText = std::to_string(resetPercent_);
+
+		int digitCount = static_cast<int>(percentText.size());
+		// 数字全体の幅を計算して中央揃え
+		float totalWidth = digitCount * resetPercentDigitSize_.x + resetPercentSymbolSize_.x + digitCount * resetPercentSpacing_;
+
+		float startX = resetPercentPosition_.x - totalWidth / 2.0f;
+
+		// 各桁の数字を描画
+		for (int i = 0; i < digitCount; ++i) {
+			int number = percentText[i] - '0';
+
+			Sprite* digitSprite = resetPercentSprites_[i][number];
+
+			digitSprite->SetPosition({startX + i * (resetPercentDigitSize_.x + resetPercentSpacing_), resetPercentPosition_.y});
+
+			digitSprite->SetSize(resetPercentDigitSize_);
+			digitSprite->Draw();
+		}
+		//%を数字に右側に描画
+		resetPercentSymbolSprite_->SetPosition({startX + digitCount * (resetPercentDigitSize_.x + resetPercentSpacing_), resetPercentPosition_.y});
+		//%の描画
+		resetPercentSymbolSprite_->SetSize(resetPercentSymbolSize_);
+		resetPercentSymbolSprite_->Draw();
+	}
 
 	Sprite::PostDraw();
 }
 // リセット
 void GameScene::Reset() {
-	// Rキー長押しでリセット
+	// Rキーの長押しでリセット
 	if (Input::GetInstance()->PushKey(DIK_R)) {
 		resetHoldTime_ += 1.0f / 60.0f;
-		// 長押し時間が一定時間を超えたらリセット
-		if (resetHoldTime_ >= resetRequiredTime_ && !isResetRequired_) {
-			isResetRequired_ = true;
+		// 長押し時間を0～1の割合に変換
+		float rate = resetHoldTime_ / resetRequiredTime_;
+		// 進行率を0～1の範囲に制限
+		if (rate > 1.0f) {
+			rate = 1.0f;
+		}
+		// 進行率を整数に変換
+		resetPercent_ = static_cast<int>(rate * 100.0f);
+
+		// ゲージを左から右へ伸ばす
+		resetMeterSprite_->SetSize({resetMeterSize_.x * rate, resetMeterSize_.y});
+		// 必要時間まで長押ししたらリセット
+		if (resetHoldTime_ >= resetRequiredTime_ && !isResetRequested_) {
+			isResetRequested_ = true;
 			sceneManager_->ChangeScene(SceneType::Game);
 		}
 	} else {
-		// キーを離したらカウントリセット
+		// Rキーを離したらゲージをリセット
 		resetHoldTime_ = 0.0f;
-		isResetRequired_ = false;
+		resetPercent_ = 0;
+		isResetRequested_ = false;
+
+		resetMeterSprite_->SetSize({0.0f, resetMeterSize_.y});
 	}
 }
 // マップエディタの描画
@@ -224,30 +293,96 @@ void GameScene::UpdateCamera() {
 	camera_.TransferMatrix();
 }
 // ImGui更新
+// ImGui更新
 void GameScene::UpdateImGui() {
 #ifdef _DEBUG
 	// カメラ座標表示
 	ImGui::Begin("Camera Info");
+
 	ImGui::Text("Camera Position");
 	ImGui::Separator();
 
-	// 現在値表示
 	ImGui::Text("X: %.2f", camera_.translation_.x);
 	ImGui::Text("Y: %.2f", camera_.translation_.y);
 	ImGui::Text("Z: %.2f", camera_.translation_.z);
 
 	ImGui::Separator();
 
-	// カメラ移動用
 	bool changed = false;
-	if (ImGui::DragFloat3("Translation", &camera_.translation_.x, 0.1f, -1000.0f, 1000.0f, "%.2f"))
-		changed = true;
 
-	// スライダーで変化があればカメラ行列を即時更新
+	if (ImGui::DragFloat3("Translation", &camera_.translation_.x, 0.1f, -1000.0f, 1000.0f, "%.2f")) {
+		changed = true;
+	}
+
 	if (changed) {
 		camera_.UpdateMatrix();
 		camera_.TransferMatrix();
 	}
+
+	ImGui::End();
+
+	// リセットゲージ調整
+	ImGui::Begin("Reset Meter");
+
+	ImGui::Text("Position");
+	ImGui::DragFloat("Meter X", &resetMeterPosition_.x, 1.0f, 0.0f, 1280.0f, "%.1f");
+
+	ImGui::DragFloat("Meter Y", &resetMeterPosition_.y, 1.0f, 0.0f, 720.0f, "%.1f");
+
+	ImGui::Separator();
+	ImGui::Text("Size");
+
+	ImGui::DragFloat("Meter Width", &resetMeterSize_.x, 1.0f, 1.0f, 1280.0f, "%.1f");
+
+	ImGui::DragFloat("Meter Height", &resetMeterSize_.y, 1.0f, 1.0f, 720.0f, "%.1f");
+
+	if (resetMeterSprite_) {
+		resetMeterSprite_->SetPosition(resetMeterPosition_);
+
+		// 長押し中は進行率に合わせた幅を反映する
+		float rate = resetHoldTime_ / resetRequiredTime_;
+		if (rate < 0.0f)
+			rate = 0.0f;
+		if (rate > 1.0f)
+			rate = 1.0f;
+
+		resetMeterSprite_->SetSize({resetMeterSize_.x * rate, resetMeterSize_.y});
+	}
+
+	ImGui::End();
+
+	// パーセント表示調整
+	ImGui::Begin("Reset Percentage");
+
+	// 数字全体の中心位置
+	ImGui::Text("Digit Position");
+
+	ImGui::DragFloat("Digit Center X", &resetPercentPosition_.x, 1.0f, 0.0f, 1280.0f, "%.1f");
+
+	ImGui::DragFloat("Digit Center Y", &resetPercentPosition_.y, 1.0f, 0.0f, 720.0f, "%.1f");
+
+	ImGui::Separator();
+	ImGui::Text("Digit Size");
+
+	ImGui::DragFloat("Digit Width", &resetPercentDigitSize_.x, 0.5f, 1.0f, 200.0f, "%.1f");
+
+	ImGui::DragFloat("Digit Height", &resetPercentDigitSize_.y, 0.5f, 1.0f, 200.0f, "%.1f");
+
+	ImGui::DragFloat("Digit Spacing", &resetPercentSpacing_, 0.5f, 0.0f, 100.0f, "%.1f");
+
+	ImGui::Separator();
+	ImGui::Text("Percent Symbol Offset");
+
+	ImGui::DragFloat("Percent Offset X", &resetPercentSymbolOffset_.x, 0.5f, -200.0f, 200.0f, "%.1f");
+
+	ImGui::DragFloat("Percent Offset Y", &resetPercentSymbolOffset_.y, 0.5f, -200.0f, 200.0f, "%.1f");
+
+	ImGui::Separator();
+	ImGui::Text("Percent Symbol Size");
+
+	ImGui::DragFloat("Percent Width", &resetPercentSymbolSize_.x, 0.5f, 1.0f, 200.0f, "%.1f");
+
+	ImGui::DragFloat("Percent Height", &resetPercentSymbolSize_.y, 0.5f, 1.0f, 200.0f, "%.1f");
 
 	ImGui::End();
 #endif
