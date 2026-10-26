@@ -18,8 +18,8 @@ void Player::Initialize(const Vector3& position) {
 	model_ = Model::CreateFromOBJ("cube");
 
 	worldTransform_.Initialize();
-	worldTransform_.scale_ = {0.8f, 0.8f, 0.8f};
-	halfSize_ = {0.5f * worldTransform_.scale_.x, 0.5f * worldTransform_.scale_.y, 0.5f * worldTransform_.scale_.z};
+	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
+	halfSize_ = {1.0f * worldTransform_.scale_.x, 1.0f * worldTransform_.scale_.y, 1.0f * worldTransform_.scale_.z};
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();

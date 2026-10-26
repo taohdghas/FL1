@@ -35,7 +35,7 @@ private:
 	float moveSpeed_ = 0.12f;
 	float jumpPower_ = 0.28f;
 	float gravity_ = 0.012f;
-	Vector3 halfSize_{0.4f, 0.4f, 0.4f};
+	Vector3 halfSize_{0.5f, 0.5f, 0.5f};
 	bool isGrounded_ = false;
 	bool isInitialized_ = false;
 };
