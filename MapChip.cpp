@@ -1,6 +1,6 @@
-
 #include "MapChip.h"
 
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -16,9 +16,7 @@ bool MapChip::Initialize(const std::string& csvPath, float blockSize) {
 }
 
 // 更新
-void MapChip::Update() {
-	
-}
+void MapChip::Update() {}
 
 // 描画
 void MapChip::Draw(const Camera& camera) {
@@ -154,8 +152,10 @@ void MapChip::UpdateBlock(int row, int column) {
 	Vector3 position{static_cast<float>(column) * blockSize_, static_cast<float>(static_cast<int>(mapData_.size()) - 1 - row) * blockSize_, 0.0f};
 
 	// 変更されたマスのブロックだけ生成
+	// blockSize_ を渡すことで、ブロックのスケールとAABB半サイズが
+	// グリッド1マス分に一致し、隣接ブロック間の隙間がなくなる
 	blocks_[row][column] = std::make_unique<Block>();
-	blocks_[row][column]->Initialize(position);
+	blocks_[row][column]->Initialize(position, blockSize_);
 }
 
 // マスの値を変更
@@ -211,4 +211,89 @@ int MapChip::GetColumnCount() const {
 	}
 
 	return static_cast<int>(mapData_[0].size());
+}
+
+// Playerと各BlockのAABB衝突を解決する
+void MapChip::ResolvePlayerCollision(Player& player) const {
+	// プレイヤーの現在位置と前フレーム位置を取得
+	Vector3 pos = player.GetPosition();
+	const Vector3 prevPos = player.GetPreviousPosition();
+	const Vector3 playerHalf = player.GetHalfSize();
+
+	// 接地フラグ（このフレームで地面に触れたか）
+	bool grounded = false;
+	// 垂直速度の上書き用
+	float newVerticalVelocity = player.GetVerticalVelocity();
+
+	for (size_t row = 0; row < blocks_.size(); ++row) {
+		for (size_t column = 0; column < blocks_[row].size(); ++column) {
+			const Block* block = blocks_[row][column].get();
+			if (block == nullptr) {
+				continue;
+			}
+
+			const Vector3 blockPos = block->GetPosition();
+			const Vector3 blockHalf = block->GetHalfSize();
+
+			// AABB同士の重なりチェック（現在位置）
+			const bool overlapX = std::abs(pos.x - blockPos.x) < (playerHalf.x + blockHalf.x);
+			const bool overlapY = std::abs(pos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
+			const bool overlapZ = std::abs(pos.z - blockPos.z) < (playerHalf.z + blockHalf.z);
+
+			if (!(overlapX && overlapY && overlapZ)) {
+				continue; // このブロックとは当たっていない
+			}
+
+			// 前フレームでY方向に重なっていたか
+			const bool prevOverlapY = std::abs(prevPos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
+
+			// 前フレームでY方向に重なっていなかった → 縦方向の衝突
+			if (!prevOverlapY) {
+				if (pos.y > blockPos.y) {
+					// 上に乗っている（着地）
+					pos.y = blockPos.y + blockHalf.y + playerHalf.y;
+
+					if (newVerticalVelocity <= 0.0f) {
+						newVerticalVelocity = 0.0f;
+						grounded = true;
+					}
+				} else {
+					// 下から頭をぶつけた
+					pos.y = blockPos.y - blockHalf.y - playerHalf.y;
+
+					if (newVerticalVelocity > 0.0f) {
+						newVerticalVelocity = 0.0f;
+					}
+				}
+
+				continue;
+			}
+
+			// ここに来る = 前フレームからY方向には重なっていた → 横方向の衝突
+			// X軸とZ軸のめり込み量を比較して、小さい方の軸で押し戻す
+			const float penX = (playerHalf.x + blockHalf.x) - std::abs(pos.x - blockPos.x);
+			const float penZ = (playerHalf.z + blockHalf.z) - std::abs(pos.z - blockPos.z);
+
+			if (penX < penZ) {
+				// X軸で押し戻す
+				if (pos.x > blockPos.x) {
+					pos.x = blockPos.x + blockHalf.x + playerHalf.x;
+				} else {
+					pos.x = blockPos.x - blockHalf.x - playerHalf.x;
+				}
+			} else {
+				// Z軸で押し戻す
+				if (pos.z > blockPos.z) {
+					pos.z = blockPos.z + blockHalf.z + playerHalf.z;
+				} else {
+					pos.z = blockPos.z - blockHalf.z - playerHalf.z;
+				}
+			}
+		}
+	}
+
+	// 解決後の位置をプレイヤーへ反映
+	player.SetPosition(pos);
+	player.SetVerticalVelocity(newVerticalVelocity);
+	player.SetGrounded(grounded);
 }

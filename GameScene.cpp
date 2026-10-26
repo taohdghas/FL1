@@ -13,7 +13,7 @@ void GameScene::Initialize() {
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
 
 	// プレイヤーを初期化（仮の地面の高さはY=0.5）
-	player_.Initialize({0.0f, 0.5f, 0.0f});
+	player_.Initialize({0.0f, 5.0f, 0.0f});
 
 	// マップを読み込む
 	if (mapChip_.Initialize(csvPath_, 2.0f)) {
@@ -26,16 +26,19 @@ void GameScene::Initialize() {
 	ui_ = std::make_unique<UI>();
 	ui_->Initialize();
 }
-//終了
+// 終了
 void GameScene::Finalize() {
 	mapChip_.Finalize(); // マップチップ
 	ui_->Finalize();     // ポーズメニュー
 }
-//更新
+// 更新
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
 	player_.Update();
+
+	// ★ プレイヤーとブロックの衝突解決
+	mapChip_.ResolvePlayerCollision(player_);
 
 	// マップエディタ
 	DrawMapEditor();

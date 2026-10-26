@@ -3,6 +3,7 @@
 using namespace KamataEngine;
 
 #include "Block.h"
+#include "Player.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -14,6 +15,9 @@ public:
 
 	bool Initialize(const std::string& csvPath, float blockSize = 2.0f);
 	void Update();
+
+	// Playerと各BlockのAABB衝突を解決する
+	void ResolvePlayerCollision(Player& player) const;
 	void Draw(const Camera& camera);
 	void Finalize();
 

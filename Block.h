@@ -8,31 +8,22 @@ public:
 	Block() = default;
 	~Block();
 
-	// 初期化
-	void Initialize(const Vector3& position);
-
-	// 更新
+	// size: 衝突判定（AABB）の1辺の大きさ。
+	// 見た目のモデルスケールは 1 のまま（cube.obj の実寸）。
+	void Initialize(const Vector3& position, float size = 1.0f);
 	void Update();
-
-	// 描画
 	void Draw(const Camera& camera);
 
-	// 座標設定
 	void SetPosition(const Vector3& position);
-
-	// 座標取得
 	const Vector3& GetPosition() const;
 
+	// AABB衝突判定用：ブロックの半サイズを返す
+	const Vector3& GetHalfSize() const;
+
 private:
-	// 3Dモデル
 	Model* model_ = nullptr;
-
-	// ワールドトランスフォーム
 	WorldTransform worldTransform_{};
-
-	// ブロックの座標
 	Vector3 position_{};
-
-	// 初期化済みフラグ
+	Vector3 halfSize_{0.5f, 0.5f, 0.5f};
 	bool isInitialized_ = false;
 };

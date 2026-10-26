@@ -1,27 +1,25 @@
 #include "Player.h"
 #include "MyMath.h"
-#include "KamataEngine.h"
-#include <Windows.h>
+#include <KamataEngine.h>
 
 using namespace KamataEngine;
 
 Player::~Player() {
-	// Model::CreateFromOBJで生成したモデルを解放
 	delete model_;
 	model_ = nullptr;
 }
 
 void Player::Initialize(const Vector3& position) {
 	position_ = position;
-	groundY_ = position.y;
+	previousPosition_ = position;
 	verticalVelocity_ = 0.0f;
-	isGrounded_ = true;
+	isGrounded_ = false;
 
-	// 仮のプレイヤーモデルとしてCubeを使用
 	model_ = Model::CreateFromOBJ("cube");
 
 	worldTransform_.Initialize();
 	worldTransform_.scale_ = {0.8f, 0.8f, 0.8f};
+	halfSize_ = {0.5f * worldTransform_.scale_.x, 0.5f * worldTransform_.scale_.y, 0.5f * worldTransform_.scale_.z};
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
@@ -34,9 +32,11 @@ void Player::Update() {
 		return;
 	}
 
+	// 衝突判定で前フレームの位置と比較するため、移動前の座標を保存
+	previousPosition_ = position_;
+
 	Input* input = Input::GetInstance();
 
-	// 左右移動：A/D または左右方向キー
 	if (input->PushKey(DIK_A) || input->PushKey(DIK_LEFT)) {
 		position_.x -= moveSpeed_;
 	}
@@ -44,24 +44,16 @@ void Player::Update() {
 		position_.x += moveSpeed_;
 	}
 
-	// 接地中にSpaceキーを押したときだけジャンプ
+	// 接地しているときだけジャンプできる
 	if (isGrounded_ && input->TriggerKey(DIK_SPACE)) {
 		verticalVelocity_ = jumpPower_;
 		isGrounded_ = false;
 	}
 
-	// 重力と垂直方向の移動
-	if (!isGrounded_) {
-		verticalVelocity_ -= gravity_;
-		position_.y += verticalVelocity_;
-
-		// 現段階では固定された平面を地面として扱う
-		if (position_.y <= groundY_) {
-			position_.y = groundY_;
-			verticalVelocity_ = 0.0f;
-			isGrounded_ = true;
-		}
-	}
+	// 毎フレーム重力を加える。着地判定はMapChip側で行う
+	isGrounded_ = false;
+	verticalVelocity_ -= gravity_;
+	position_.y += verticalVelocity_;
 
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
@@ -76,3 +68,17 @@ void Player::Draw(const Camera& camera) {
 }
 
 const Vector3& Player::GetPosition() const { return position_; }
+const Vector3& Player::GetPreviousPosition() const { return previousPosition_; }
+const Vector3& Player::GetHalfSize() const { return halfSize_; }
+float Player::GetVerticalVelocity() const { return verticalVelocity_; }
+bool Player::IsGrounded() const { return isGrounded_; }
+
+void Player::SetPosition(const Vector3& position) {
+	position_ = position;
+	// 衝突補正後も同じフレームで描画位置に反映する
+	worldTransform_.translation_ = position_;
+	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
+	worldTransform_.TransferMatrix();
+}
+void Player::SetVerticalVelocity(float velocity) { verticalVelocity_ = velocity; }
+void Player::SetGrounded(bool grounded) { isGrounded_ = grounded; }
