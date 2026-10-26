@@ -5,9 +5,8 @@
 
 void GameScene::Initialize() {
 	// カメラの初期化
-	camera_.Initialize();
 	camera_.translation_ = {20.0f, 10.0f, -30.0f};
-	camera_.UpdateMatrix();
+	camera_.Initialize();
 
 	// CSVパスを入力欄に設定
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
@@ -26,7 +25,7 @@ void GameScene::Initialize() {
 	ui_ = std::make_unique<UI>();
 	ui_->Initialize();
 }
-//終了
+// 終了
 void GameScene::Finalize() {
 	mapChip_.Finalize(); // マップチップ
 	ui_->Finalize();     // ポーズメニュー
@@ -71,7 +70,8 @@ void GameScene::Update() {
 	if (ui_->IsPauseMenuActive()) {
 		return;
 	}
-
+	// リセット
+	Reset();
 	// カメラ行列を更新
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
@@ -92,7 +92,22 @@ void GameScene::Draw() {
 
 	Sprite::PostDraw();
 }
-
+// リセット
+void GameScene::Reset() {
+	// Rキー長押しでリセット
+	if (Input::GetInstance()->PushKey(DIK_R)) {
+		resetHoldTime_ += 1.0f / 60.0f;
+		// 長押し時間が一定時間を超えたらリセット
+		if (resetHoldTime_ >= resetRequiredTime_ && !isResetRequired_) {
+			isResetRequired_ = true;
+			sceneManager_->ChangeScene(SceneType::Game);
+		}
+	} else {
+		// キーを離したらカウントリセット
+		resetHoldTime_ = 0.0f;
+		isResetRequired_ = false;
+	}
+}
 // マップエディタの描画
 void GameScene::DrawMapEditor() {
 #ifdef _DEBUG
