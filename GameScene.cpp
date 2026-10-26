@@ -134,7 +134,6 @@ void GameScene::Draw() {
 			Sprite* digitSprite = resetPercentSprites_[i][number];
 
 			digitSprite->SetPosition({startX + i * (resetPercentDigitSize_.x + resetPercentSpacing_), resetPercentPosition_.y});
-
 			digitSprite->SetSize(resetPercentDigitSize_);
 			digitSprite->Draw();
 		}
