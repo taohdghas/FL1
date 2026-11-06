@@ -4,7 +4,7 @@
 
 using namespace KamataEngine;
 
-// Cubeを仮モデルにしたプレイヤー
+//プレイヤー
 class Player {
 public:
 	Player() = default;
@@ -33,6 +33,8 @@ private:
 	WorldTransform worldTransform_{};
 	//現在のエレメント
 	ElementType currentElement_ = ElementType::None;
+	//オブジェクトカラー
+	ObjectColor objectColor_{};
 	Vector3 position_{};
 	Vector3 previousPosition_{};
 	Vector3 halfSize_{0.5f, 0.5f, 0.5f};

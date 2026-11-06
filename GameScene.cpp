@@ -49,7 +49,11 @@ void GameScene::Initialize() {
 	elementUI_->Initialize();
 	//各エレメントを登録
 	elementUI_->AddPanel(ElementType::Fire, "fire_element_panel.png", {200.0f, 660.0f}, {100.0f, 100.0f});
-	elementUI_->AddPanel(ElementType::Water, "water_element_panel.png", {500.0f, 660.0f}, {100.0f, 100.0f});
+	elementUI_->AddPanel(ElementType::Water, "water_element_panel.png", {400.0f, 660.0f}, {100.0f, 100.0f});
+	elementUI_->AddPanel(ElementType::Electric, "elec_element_panel.png", {600.0f, 660.0f}, {100.0f, 100.0f});
+	elementUI_->AddPanel(ElementType::Gas, "gas_element_panel.png", {800.0f, 660.0f}, {100.0f, 100.0f});
+	elementUI_->AddPanel(ElementType::Stone, "stone_element_panel.png", {1000.0f, 660.0f}, {100.0f, 100.0f});
+
 }
 // 終了
 void GameScene::Finalize() {

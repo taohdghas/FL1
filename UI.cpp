@@ -151,7 +151,7 @@ bool UI::IsMouseOverSprite(Sprite* sprite) {
         mousePosition.y <= bottom;
 }
 
-// デバック
+#pragma region デバック
 void UI::Debug() {
 #ifdef _DEBUG
 	ImGui::Begin("UI Debug");
@@ -222,3 +222,4 @@ void UI::Debug() {
 	ImGui::End();
 #endif
 }
+#pragma endregion
