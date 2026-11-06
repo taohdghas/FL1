@@ -54,6 +54,8 @@ private:
 	Vector2 resetPercentSymbolSize_ = {24.0f, 32.0f};
 	// %スプライトの位置調整用オフセット
 	Vector2 resetPercentSymbolOffset_ = {0.0f, 0.0f};
+	//プレイヤーのスクリーン座標
+	Vector2 playerScreenPosition_{};
 	// エレメントシステム
 	std::unique_ptr<ElementSystem> elementSystem_;
 	//ElementSystem elementSystem_;
@@ -77,4 +79,6 @@ private:
 	const float resetRequiredTime_ = 1.5f;
 	//リセット処理重複防止
 	bool isResetRequested_ = false;
+	//火エレメントの効果時間
+	const float fireDuration_ = 5.0f;
 };

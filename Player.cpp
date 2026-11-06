@@ -25,6 +25,8 @@ void Player::Initialize(const Vector3& position) {
 	worldTransform_.TransferMatrix();
 
 	isInitialized_ = true;
+	// 現在のエレメントを初期化
+	currentElement_ = ElementType::None;
 }
 
 void Player::Update() {
@@ -72,7 +74,7 @@ const Vector3& Player::GetPreviousPosition() const { return previousPosition_; }
 const Vector3& Player::GetHalfSize() const { return halfSize_; }
 float Player::GetVerticalVelocity() const { return verticalVelocity_; }
 bool Player::IsGrounded() const { return isGrounded_; }
-
+ElementType Player::GetElement() const { return currentElement_; }
 void Player::SetPosition(const Vector3& position) {
 	position_ = position;
 	// 衝突補正後も同じフレームで描画位置に反映する
@@ -82,3 +84,4 @@ void Player::SetPosition(const Vector3& position) {
 }
 void Player::SetVerticalVelocity(float velocity) { verticalVelocity_ = velocity; }
 void Player::SetGrounded(bool grounded) { isGrounded_ = grounded; }
+void Player::SetElement(ElementType element) { currentElement_ = element; }

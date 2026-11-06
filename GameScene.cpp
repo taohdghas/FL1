@@ -46,7 +46,10 @@ void GameScene::Initialize() {
 	elementSystem_ = std::make_unique<ElementSystem>();
 	// エレメントUI
 	elementUI_ = std::make_unique<ElementUI>();
-	elementUI_->Initialize("fire_element_panel.png");
+	elementUI_->Initialize();
+	//各エレメントを登録
+	elementUI_->AddPanel(ElementType::Fire, "fire_element_panel.png", {200.0f, 660.0f}, {100.0f, 100.0f});
+	elementUI_->AddPanel(ElementType::Water, "water_element_panel.png", {500.0f, 660.0f}, {100.0f, 100.0f});
 }
 // 終了
 void GameScene::Finalize() {
@@ -62,8 +65,16 @@ void GameScene::Finalize() {
 	}
 	delete resetPercentSymbolSprite_; //%スプライト
 
-	elementUI_->Finalize();
-	elementSystem_->Clear();
+	//エレメントUI
+	if (elementUI_) {
+		elementUI_->Finalize();
+		elementUI_.reset();
+	}
+	//エレメントシステム
+	if (elementSystem_) {
+		elementSystem_->Clear();
+		elementSystem_.reset();
+	}
 }
 // 更新
 void GameScene::Update() {
@@ -110,23 +121,26 @@ void GameScene::Update() {
 	}
 	// リセット
 	Reset();
-	// エレメントシステムの更新
-	elementSystem_->Update(1.0f / 60.0f);
 	// カメラ行列を更新
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
-	// プレイヤーのスクリーン座標を取得
-	Vector2 playerScreenPosition = GetPlayerScreenPosition();
-
-	if (elementUI_->Update(playerScreenPosition)) {
-		// エレメント接続
-		if (elementSystem_->Connect(ElementType::Fire, 5.0f)) {
-			message_ = "Fire element connected.";
-		}
+	// プレイヤーのスクリーン座標を取得 
+	playerScreenPosition_ = GetPlayerScreenPosition();
+	// エレメントシステムの更新
+	elementSystem_->Update(1.0f / 60.0f);
+	// エレメントUIの更新
+	ElementType connectedElement = elementUI_->Update(playerScreenPosition_);
+	//接続に成功したら切り替える
+	if (connectedElement != ElementType::None)
+	{
+		elementSystem_->Connect(connectedElement, fireDuration_);
 	}
+	//エレメントシステムの状態をプレイヤーに反映
+	player_.SetElement(elementSystem_->GetCurrentElement());
+
 	// デバッグ表示
 #ifdef _DEBUG
-	elementUI_->Debug(*elementSystem_, playerScreenPosition);
+	elementUI_->Debug(*elementSystem_, playerScreenPosition_);
 #endif
 }
 

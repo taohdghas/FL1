@@ -1,4 +1,6 @@
 #include "ElementSystem.h"
+#include <string>
+
 
 //更新
 void ElementSystem::Update(float deltaTime) { 

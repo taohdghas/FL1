@@ -1,37 +1,29 @@
 #include "ElementUI.h"
 #include "ElementSystem.h"
+#include <cmath>
 #include <imgui.h>
 
 // 初期化
-void ElementUI::Initialize(const std::string& fireTexturePath) {
+void ElementUI::Initialize() {
 	Finalize();
 
-	// 通常表示用の火パネル
-	firePanelSprite_ = Sprite::Create(TextureManager::Load(fireTexturePath), firePanelPosition_);
-
-	// ドラッグ中にカーソルへ追従する画像
-	dragSprite_ = Sprite::Create(TextureManager::Load(fireTexturePath), firePanelPosition_);
-
-	if (firePanelSprite_) {
-		firePanelSprite_->SetAnchorPoint({0.5f, 0.5f});
-		firePanelSprite_->SetSize(firePanelSize_);
-	}
-
-	if (dragSprite_) {
-		dragSprite_->SetAnchorPoint({0.5f, 0.5f});
-		dragSprite_->SetSize(firePanelSize_);
-	}
-
-	isDragging_ = false;
-	isInitialized_ = firePanelSprite_ != nullptr && dragSprite_ != nullptr;
+	isInitialized_ = !panels_.empty();
 }
 // 終了
 void ElementUI::Finalize() {
-	delete firePanelSprite_;
-	firePanelSprite_ = nullptr;
-	delete dragSprite_;
-	dragSprite_ = nullptr;
+	for (ElementPanel& panel : panels_) {
+		delete panel.panelSprite;
+		delete panel.dragSprite;
+
+		panel.panelSprite = nullptr;
+		panel.dragSprite = nullptr;
+	}
+
+	panels_.clear();
+
+	draggingPanelIndex_ = -1;
 	isDragging_ = false;
+	isPlayerHovered_ = false;
 	isInitialized_ = false;
 }
 // 描画
@@ -40,148 +32,218 @@ void ElementUI::Draw() {
 		return;
 	}
 
-	// 通常のパネルは常に表示
-	firePanelSprite_->Draw();
+	for (int i = 0; i < static_cast<int>(panels_.size()); ++i) {
+		ElementPanel& panel = panels_[i];
 
-	// ドラッグ中だけカーソル追従画像を表示
-	if (isDragging_) {
-		dragSprite_->Draw();
+		// 通常のパネル
+		panel.panelSprite->Draw();
+
+		// ドラッグ中のパネル
+		if (isDragging_ && draggingPanelIndex_ == i) {
+			panel.dragSprite->Draw();
+		}
 	}
 }
-// デバック
+#pragma region デバック
 #ifdef _DEBUG
 void ElementUI::Debug( ElementSystem& elementSystem, Vector2& playerScreenPosition) {
-
 	ImGui::Begin("Element Debug");
-
-	// パネルの位置・サイズ調整
-	if (isInitialized_) {
-
-		ImGui::Text("Fire Panel");
-		ImGui::Separator();
-
-		if (ImGui::DragFloat2("Fire Position", &firePanelPosition_.x, 1.0f)) {
-
-			firePanelSprite_->SetPosition(firePanelPosition_);
-
-			if (!isDragging_) {
-				dragSprite_->SetPosition(firePanelPosition_);
-			}
-		}
-
-		if (ImGui::DragFloat2("Fire Size", &firePanelSize_.x, 1.0f)) {
-
-			firePanelSprite_->SetSize(firePanelSize_);
-			dragSprite_->SetSize(firePanelSize_);
-		}
-	}
-
-	ImGui::Separator();
 
 	// 現在のエレメント
 	ImGui::Text("Current Element");
+	ImGui::Text("%s", GetElementName(elementSystem.GetCurrentElement()));
 
-	switch (elementSystem.GetCurrentElement()) {
-
-	case ElementType::None:
-		ImGui::Text("NONE (Not Connected)");
-		break;
-
-	case ElementType::Fire:
-		ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.1f, 1.0f), "FIRE");
-
+	if (elementSystem.IsActive()) {
 		ImGui::Text("Remaining Time: %.2f sec", elementSystem.GetRemainingTime());
-		break;
-
-	default:
-		ImGui::Text("Other Element");
-		break;
 	}
 
 	ImGui::Separator();
+
+	// 登録パネルの調整
+	ImGui::Text("Panel Settings");
+
+	for (int i = 0; i < static_cast<int>(panels_.size()); ++i) {
+		ElementPanel& panel = panels_[i];
+
+		ImGui::PushID(i);
+
+		ImGui::Text("%s", GetElementName(panel.type));
+
+		if (ImGui::DragFloat2("Position", &panel.position.x, 1.0f)) {
+			panel.panelSprite->SetPosition(panel.position);
+
+			if (!isDragging_ || draggingPanelIndex_ != i) {
+				panel.dragSprite->SetPosition(panel.position);
+			}
+		}
+
+		if (ImGui::DragFloat2("Size", &panel.size.x, 1.0f, 1.0f, 300.0f)) {
+			panel.panelSprite->SetSize(panel.size);
+			panel.dragSprite->SetSize(panel.size);
+		}
+
+		ImGui::Separator();
+
+		ImGui::PopID();
+	}
 
 	// ドラッグ状態
 	ImGui::Text("Drag Status");
 
-	if (isDragging_) {
-		ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "DRAGGING");
-	} else {
-		ImGui::Text("NOT DRAGGING");
-	}
+	ImGui::Text("%s", isDragging_ ? "DRAGGING" : "NOT DRAGGING");
 
-	ImGui::Separator();
-
-	// プレイヤーとの接続判定
+	// 接続判定
 	ImGui::Text("Player Connection Range");
 
 	if (isDragging_) {
-		if (isPlayerHovered_) {
-			ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "IN RANGE");
-		} else {
-			ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "OUT OF RANGE");
-		}
+		ImGui::Text("%s", isPlayerHovered_ ? "IN RANGE" : "OUT OF RANGE");
 	} else {
 		ImGui::Text("WAITING");
 	}
 
 	ImGui::Separator();
 
-	// プレイヤーのスクリーン座標
-	ImGui::Text("Player Screen Position");
-	ImGui::Text("X: %.1f  Y: %.1f", playerScreenPosition.x, playerScreenPosition.y);
+	// 接続判定範囲の調整
+	ImGui::Text("Connection Range");
 
-	// マウスの座標
+	ImGui::DragFloat2("Drop Half Size", &playerDropHalfSize_.x, 1.0f, 1.0f, 300.0f);
+
+	// プレイヤー座標
+	ImGui::Separator();
+
+	ImGui::Text("Player Screen: X %.1f / Y %.1f", playerScreenPosition.x, playerScreenPosition.y);
+
+	// マウス座標
 	Vector2 mousePosition = Input::GetInstance()->GetMousePosition();
 
-	ImGui::Text("Mouse Position");
-	ImGui::Text("X: %.1f  Y: %.1f", mousePosition.x, mousePosition.y);
+	ImGui::Text("Mouse: X %.1f / Y %.1f", mousePosition.x, mousePosition.y);
 
 	ImGui::End();
+
 }
 #endif
+#pragma endregion
 // 更新
-bool ElementUI::Update(const Vector2& playerScreenPosition) {
+ElementType ElementUI::Update(const Vector2& playerScreenPosition) {
 	if (!isInitialized_) {
-		return false;
+		return ElementType::None;
 	}
 
 	const Vector2 mousePosition = Input::GetInstance()->GetMousePosition();
 
-	// ドラッグしていない場合
-	if (!isDragging_) {
+	// ドラッグ開始
+	if (!isDragging_ && Input::GetInstance()->IsTriggerMouse(0)) {
 
-		isPlayerHovered_ = false;
+		for (int i = 0; i < static_cast<int>(panels_.size()); ++i) {
+			ElementPanel& panel = panels_[i];
 
-		// 火パネルを押したらドラッグ開始
-		if (Input::GetInstance()->IsTriggerMouse(0) && IsInside(mousePosition, firePanelPosition_, {firePanelSize_.x * 0.5f, firePanelSize_.y * 0.5f})) {
+			if (IsInside(mousePosition, panel.position, {panel.size.x * 0.5f, panel.size.y * 0.5f})) {
 
-			isDragging_ = true;
+				isDragging_ = true;
+				draggingPanelIndex_ = i;
+
+				break;
+			}
 		}
 	}
 
 	if (!isDragging_) {
-		return false;
+		isPlayerHovered_ = false;
+		return ElementType::None;
 	}
 
-	// ドラッグ画像をカーソルに追従させる
-	dragSprite_->SetPosition(mousePosition);
+	ElementPanel& panel = panels_[draggingPanelIndex_];
 
-	// プレイヤーの接続範囲内か確認
+	// ドラッグ中の画像をマウスに追従
+	panel.dragSprite->SetPosition(mousePosition);
+
+	// 接続範囲の確認
 	isPlayerHovered_ = IsInside(mousePosition, playerScreenPosition, playerDropHalfSize_);
 
-	// マウスを押している間はドラッグ継続
+	// マウスを押している間は継続
 	if (Input::GetInstance()->IsPressMouse(0)) {
+		return ElementType::None;
+	}
+
+	// マウスを離したとき
+	ElementType result = ElementType::None;
+
+	if (isPlayerHovered_) {
+		result = panel.type;
+	}
+
+	// ドラッグ状態を解除
+	isDragging_ = false;
+	isPlayerHovered_ = false;
+
+	// 元の位置に戻す
+	panel.dragSprite->SetPosition(panel.position);
+
+	draggingPanelIndex_ = -1;
+
+	return result;
+}
+
+// パネルを追加
+bool ElementUI::AddPanel(ElementType type, const std::string& texturePath, const Vector2& position, const Vector2& size) {
+	if (type == ElementType::None) {
 		return false;
 	}
 
-	// マウスを離したときに接続判定
-	const bool connected = isPlayerHovered_;
+	// 同じエレメントが登録済みなら追加しない
+	for (const ElementPanel& panel : panels_) {
+		if (panel.type == type) {
+			return false;
+		}
+	}
 
-	isDragging_ = false;
-	// ドラッグ画像を元の位置に戻す
-	dragSprite_->SetPosition(firePanelPosition_);
+	ElementPanel panel;
 
-	return connected;
+	panel.type = type;
+	panel.position = position;
+	panel.size = size;
+
+	// テクスチャを読み込んでスプライトを作成
+	panel.panelSprite = Sprite::Create(TextureManager::Load(texturePath), position);
+
+	panel.dragSprite = Sprite::Create(TextureManager::Load(texturePath), position);
+
+	if (!panel.panelSprite || !panel.dragSprite) {
+		delete panel.panelSprite;
+		delete panel.dragSprite;
+		return false;
+	}
+
+	panel.panelSprite->SetAnchorPoint({0.5f, 0.5f});
+	panel.panelSprite->SetSize(size);
+
+	panel.dragSprite->SetAnchorPoint({0.5f, 0.5f});
+	panel.dragSprite->SetSize(size);
+
+	panels_.push_back(panel);
+
+	isInitialized_ = true;
+
+	return true;
 }
 // ドラッグ中かどうか
 bool ElementUI::IsInside(const Vector2& point, const Vector2& center, const Vector2& halfSize) { return std::abs(point.x - center.x) <= halfSize.x && std::abs(point.y - center.y) <= halfSize.y; }
+// エレメント名を取得
+const char* ElementUI::GetElementName(ElementType type) {
+	switch (type) {
+	case ElementType::None:
+		return "None";
+	case ElementType::Fire:
+		return "Fire";
+	case ElementType::Water:
+		return "Water";
+	case ElementType::Stone:
+		return "Stone";
+	case ElementType::Gas:
+		return "Gas";
+	case ElementType::Electric:
+		return "Electric";
+	default:
+		return "Unknown";
+	}
+}

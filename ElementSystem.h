@@ -1,16 +1,8 @@
 #pragma once
 #include <KamataEngine.h>
+#include "ElementType.h"
 
 using namespace KamataEngine;
-
-enum class ElementType {
-	None,
-	Fire,
-	Water,
-	Stone,
-	Gas,
-	Electric,
-};
 
 class ElementSystem {
 public:

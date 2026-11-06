@@ -194,6 +194,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
   <ItemGroup>
     <ClInclude Include="Block.h" />
     <ClInclude Include="ElementSystem.h" />
+    <ClInclude Include="ElementType.h" />
     <ClInclude Include="ElementUI.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="MapChip.h" />
