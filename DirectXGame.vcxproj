@@ -179,6 +179,8 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Block.cpp" />
+    <ClCompile Include="ElementSystem.cpp" />
+    <ClCompile Include="ElementUI.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MapChip.cpp" />
@@ -191,6 +193,8 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Block.h" />
+    <ClInclude Include="ElementSystem.h" />
+    <ClInclude Include="ElementUI.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="MapChip.h" />
     <ClInclude Include="MyMath.h" />

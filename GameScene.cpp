@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "MyMath.h"
 #include "SceneManager.h"
 #include <cstring>
 #include <imgui.h>
@@ -40,6 +41,12 @@ void GameScene::Initialize() {
 	//%記号
 	resetPercentSymbolSprite_ = Sprite::Create(TextureManager::Load("percent.png"), resetPercentPosition_);
 	resetPercentSymbolSprite_->SetSize(resetPercentSymbolSize_);
+
+	// エレメントシステム
+	elementSystem_ = std::make_unique<ElementSystem>();
+	// エレメントUI
+	elementUI_ = std::make_unique<ElementUI>();
+	elementUI_->Initialize("fire_element_panel.png");
 }
 // 終了
 void GameScene::Finalize() {
@@ -54,6 +61,9 @@ void GameScene::Finalize() {
 		}
 	}
 	delete resetPercentSymbolSprite_; //%スプライト
+
+	elementUI_->Finalize();
+	elementSystem_->Clear();
 }
 // 更新
 void GameScene::Update() {
@@ -61,7 +71,7 @@ void GameScene::Update() {
 	mapChip_.Update();
 	player_.Update();
 
-	// ★ プレイヤーとブロックの衝突解決
+	// プレイヤーとブロックの衝突解決
 	mapChip_.ResolvePlayerCollision(player_);
 
 	// マップエディタ
@@ -100,9 +110,24 @@ void GameScene::Update() {
 	}
 	// リセット
 	Reset();
+	// エレメントシステムの更新
+	elementSystem_->Update(1.0f / 60.0f);
 	// カメラ行列を更新
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
+	// プレイヤーのスクリーン座標を取得
+	Vector2 playerScreenPosition = GetPlayerScreenPosition();
+
+	if (elementUI_->Update(playerScreenPosition)) {
+		// エレメント接続
+		if (elementSystem_->Connect(ElementType::Fire, 5.0f)) {
+			message_ = "Fire element connected.";
+		}
+	}
+	// デバッグ表示
+#ifdef _DEBUG
+	elementUI_->Debug(*elementSystem_, playerScreenPosition);
+#endif
 }
 
 void GameScene::Draw() {
@@ -147,6 +172,8 @@ void GameScene::Draw() {
 		resetPercentSymbolSprite_->Draw();
 	}
 
+	elementUI_->Draw();
+
 	Sprite::PostDraw();
 }
 // リセット
@@ -179,7 +206,7 @@ void GameScene::Reset() {
 		resetMeterSprite_->SetSize({0.0f, resetMeterSize_.y});
 	}
 }
-// マップエディタの描画
+#pragma region マップエディタ
 void GameScene::DrawMapEditor() {
 #ifdef _DEBUG
 	ImGui::Begin("Map Editor");
@@ -271,6 +298,7 @@ void GameScene::DrawMapEditor() {
 	ImGui::End();
 #endif
 }
+#pragma endregion
 
 // カメラ移動(デバック用)
 void GameScene::UpdateCamera() {
@@ -294,8 +322,7 @@ void GameScene::UpdateCamera() {
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
 }
-// ImGui更新
-// ImGui更新
+#pragma region ImGui更新
 void GameScene::UpdateImGui() {
 #ifdef _DEBUG
 	// カメラ座標表示
@@ -388,4 +415,36 @@ void GameScene::UpdateImGui() {
 
 	ImGui::End();
 #endif
+}
+#pragma endregion
+// プレイヤーのワールド座標をスクリーンへ変換
+Vector2 GameScene::GetPlayerScreenPosition() {
+
+	// ゲーム画面のサイズ
+	const float screenWidth = 1280.0f;
+	const float screenHeight = 720.0f;
+	// プレイヤーのワールド座標
+	const Vector3& playerPosition = player_.GetPosition();
+	// ビュー行列 × プロジェクション行列
+	Matrix4x4 viewProjection = MyMath::MatrixMultiply(camera_.matView, camera_.matProjection);
+	// クリップ座標を計算
+	float clipX = playerPosition.x * viewProjection.m[0][0] + playerPosition.y * viewProjection.m[1][0] + playerPosition.z * viewProjection.m[2][0] + viewProjection.m[3][0];
+	float clipY = playerPosition.x * viewProjection.m[0][1] + playerPosition.y * viewProjection.m[1][1] + playerPosition.z * viewProjection.m[2][1] + viewProjection.m[3][1];
+	float clipW = playerPosition.x * viewProjection.m[0][3] + playerPosition.y * viewProjection.m[1][3] + playerPosition.z * viewProjection.m[2][3] + viewProjection.m[3][3];
+
+	// カメラの後ろにある場合
+	if (clipW <= 0.0001f) {
+		return {-10000.0f, -10000.0f};
+	}
+	// NDC座標に変換
+	float ndcX = clipX / clipW;
+	float ndcY = clipY / clipW;
+
+	// スクリーン座標に変換
+	Vector2 screenPosition;
+
+	screenPosition.x = (ndcX + 1.0f) * 0.5f * screenWidth;
+	screenPosition.y = (1.0f - ndcY) * 0.5f * screenHeight;
+
+	return screenPosition;
 }
