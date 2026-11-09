@@ -16,7 +16,8 @@ float TitleScene::getDeltaTime() {
 // 初期化
 void TitleScene::Initialize() {
 	prevTime_ = std::chrono::high_resolution_clock::now();
-	fader.fadeIn(1.0f);
+	title_ = Sprite::Create(titleTexture_, {0.0f, 0.0f}, {1, 1, 1, 1});
+	fader.fadeIn(2.0f);
 }
 
 // 終了
@@ -27,9 +28,14 @@ void TitleScene::Update() {
 	float dt = getDeltaTime();
 	fader.update(dt);
 
+	// フェード中なら操作不可
+	if (!fader.isFinished()) {
+		return;
+	}
+
 	// SPACEキーでセレクト画面へ
 	if (Input::GetInstance()->PushKey(DIK_SPACE)) {
-		fader.fadeOut(1.0f);
+		fader.fadeOut(2.0f);
 	}
 
 	// フェードアウト完了後にシーン遷移
@@ -52,7 +58,7 @@ void TitleScene::Draw() {
 
 	float fade = fader.getAlpha();
 
-	title_ = Sprite::Create(titleTexture_, {0.0f, 0.0f}, {1, 1, 1, fade});
+	title_->SetColor({1, 1, 1, fade});
 	title_->Draw();
 
 	// スプライト描画後処理

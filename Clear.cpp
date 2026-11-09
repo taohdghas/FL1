@@ -16,7 +16,9 @@ float Clear::getDeltaTime() {
 // 初期化
 void Clear::Initialize() {
 	prevTime_ = std::chrono::high_resolution_clock::now();
-	fader.fadeIn(1.0f);
+	clear_ = Sprite::Create(clearTexture_, {0.0f, 0.0f}, {1, 1, 1, 1});
+	fader.setAlpha(1.0f);
+	//fader.fadeIn(1.0f);
 
 	isPush = false;
 	isPushTitle = false;
@@ -32,21 +34,26 @@ void Clear::Update() {
 	float dt = getDeltaTime();
 	fader.update(dt);
 
+	// フェード中なら操作不可
+	if (!fader.isFinished()) {
+		return;
+	}
+
 	// Aキーでタイトル画面へ
 	if (!isPush && Input::GetInstance()->PushKey(DIK_A)) {
 		isPush = true;
 		isPushTitle = true;
-		fader.fadeOut(1.0f);
+		fader.fadeOut(1.5f);
 	}
 
 	// Sキーでセレクト画面へ
 	if (!isPush && Input::GetInstance()->PushKey(DIK_S)) {
 		isPush = true;
 		isPushSelect = true;
-		fader.fadeOut(1.0f);
+		fader.fadeOut(1.5f);
 	}
 
-	// Dキーでゲーム画面へ
+	// Dキーでリトライ
 	if (!isPush && Input::GetInstance()->PushKey(DIK_D)) {
 		isPush = true;
 		isPushRetry = true;
@@ -81,7 +88,7 @@ void Clear::Draw() {
 
 	float fade = fader.getAlpha();
 
-	clear_ = Sprite::Create(clearTexture_, {0.0f, 0.0f}, {1, 1, 1, fade});
+	clear_->SetColor({1, 1, 1, fade});
 	clear_->Draw();
 
 	// スプライト描画後処理

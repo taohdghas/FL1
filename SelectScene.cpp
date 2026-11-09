@@ -16,6 +16,7 @@ float SelectScene::getDeltaTime() {
 //初期化
 void SelectScene::Initialize() {
 	prevTime_ = std::chrono::high_resolution_clock::now();
+	sample_ = Sprite::Create(sampleTexture_, {0.0f, 0.0f}, {1, 1, 1, 1});
 	fader.fadeIn(1.0f);
 
 	isPush = false;
@@ -30,6 +31,11 @@ void SelectScene::Finalize() {}
 void SelectScene::Update() {
 	float dt = getDeltaTime();
 	fader.update(dt);
+
+	// フェード中なら操作不可
+	if (!fader.isFinished()) {
+		return;
+	}
 
 	// SPACEキーでゲーム画面へ                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 	if (!isPush && Input::GetInstance()->PushKey(DIK_SPACE)) {
@@ -71,7 +77,7 @@ void SelectScene::Draw() {
 
 	float fade = fader.getAlpha();
 
-	sample_ = Sprite::Create(sampleTexture_, {0.0f, 0.0f}, {1, 1, 1, fade});
+	sample_->SetColor({1, 1, 1, fade});
 	sample_->Draw();
 
 	// スプライト描画後処理

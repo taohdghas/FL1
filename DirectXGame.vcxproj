@@ -17,6 +17,7 @@
   <ItemGroup>
     <ClCompile Include="Clear.cpp" />
     <ClCompile Include="Fader.cpp" />
+    <ClCompile Include="Fail.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SceneManager.cpp" />
@@ -26,6 +27,7 @@
   <ItemGroup>
     <ClInclude Include="Clear.h" />
     <ClInclude Include="Fader.h" />
+    <ClInclude Include="Fail.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneManager.h" />

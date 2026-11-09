@@ -5,5 +5,6 @@ enum class SceneType {
     Title,
     Select,
     Game,
-    Clear
+    Clear,
+    Fail
 };

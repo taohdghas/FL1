@@ -2,14 +2,18 @@
 
 Fader::Fader() : alpha(0.0f), speed(1.0f), fadingIn(false), fadingOut(false) {}
 
-void Fader::fadeIn(float s) {
-	speed = s;
+void Fader::fadeIn(float second) {
+	speed = 1.0f / second;
 	fadingIn = true;
 	fadingOut = false;
 }
 
-void Fader::fadeOut(float s) {
-	speed = s;
+void Fader::fadeOut(float second) {
+	if (second <= 0.0f) {
+		second = 0.01f;
+	}
+
+	speed = 1.0f / second;
 	fadingOut = true;
 	fadingIn = false;
 }
@@ -33,5 +37,7 @@ void Fader::update(float dt) {
 }
 
 float Fader::getAlpha() const { return alpha; }
+
+void Fader::setAlpha(float value) { alpha = value; }
 
 bool Fader::isFinished() const { return !fadingIn && !fadingOut; }
