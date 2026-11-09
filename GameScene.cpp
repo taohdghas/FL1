@@ -160,8 +160,6 @@ void GameScene::Update() {
 	}
 	// エレメントシステムの状態をプレイヤーに反映
 	player_.SetElement(elementSystem_->GetCurrentElement());
-	// プレイヤーとブロックの衝突解決
-	mapChip_.ResolvePlayerCollision(player_);
 	// デバッグ表示
 #ifdef _DEBUG
 	elementUI_->Debug(*elementSystem_, playerScreenPosition_);

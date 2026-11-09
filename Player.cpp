@@ -56,7 +56,6 @@ void Player::Update() {
 	}
 
 	// 毎フレーム重力を加える。着地判定はMapChip側で行う
-	isGrounded_ = false;
 	verticalVelocity_ -= gravity_;
 	position_.y += verticalVelocity_;
 

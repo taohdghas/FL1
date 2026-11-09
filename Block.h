@@ -43,6 +43,7 @@ private:
 	//種類ごとの共有モデル
 	static Model* normalModel_; // 通常ブロック
 	static Model* burnableModel_; // 燃えるブロック
+	static Model* goalModel_;     // ゴールブロック
 	WorldTransform worldTransform_{};
 	BlockType type_ = BlockType::Normal;
 	Vector3 position_{};

@@ -6,6 +6,7 @@ using namespace KamataEngine;
 // 共有モデル実体
 Model* Block::normalModel_ = nullptr;
 Model* Block::burnableModel_ = nullptr;
+Model* Block::goalModel_ = nullptr;
 
 Block::~Block() {}
 
@@ -24,7 +25,6 @@ void Block::Initialize(const Vector3& position, float size, bool isGoal, BlockTy
     if (burnableModel_ == nullptr) {
         burnableModel_ = Model::CreateFromOBJ("burn");
     }
-
     // ゴール
     if (isGoal_) {
         goalModel_ = Model::CreateFromOBJ("cube");
@@ -46,8 +46,10 @@ void Block::Initialize(const Vector3& position, float size, bool isGoal, BlockTy
 void Block::FinalizeModels() { 
 	delete normalModel_;
 	delete burnableModel_;
+	delete goalModel_;
 	normalModel_ = nullptr;
 	burnableModel_ = nullptr;
+	goalModel_ = nullptr;
 }
 
 // 更新
