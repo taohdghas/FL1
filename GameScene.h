@@ -66,6 +66,8 @@ private:
 	float resetPercentSpacing_ = 4.0f;
 	//リセット進行率
 	int resetPercent_ = 0;
+	// マップエディタ用
+	int selectedCellType_ = 1;
 	// CSVファイルのパス
 	std::string csvPath_ = "Resources/mapdata/stage1.csv";
 	char csvPathBuffer_[256]{};

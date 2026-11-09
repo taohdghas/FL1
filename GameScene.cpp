@@ -12,14 +12,22 @@ void GameScene::Initialize() {
 	// CSVパスを入力欄に設定
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
 
-	// プレイヤーを初期化（仮の地面の高さはY=0.5）
-	player_.Initialize({0.0f, 5.0f, 0.0f});
-
 	// マップを読み込む
 	if (mapChip_.Initialize(csvPath_, 2.0f)) {
 		message_ = "Map loaded.";
 	} else {
 		message_ = "Failed to load map.";
+	}
+
+	 // プレイヤーの初期位置を設定
+	Vector3 spawnPosition;
+
+	if (mapChip_.GetPlayerSpawnPosition(spawnPosition)) {
+		// CSVにプレイヤー配置マス（3）がある場合
+		player_.Initialize(spawnPosition);
+	} else {
+		// 配置マスがない場合の初期位置
+		player_.Initialize({0.0f, 5.0f, 0.0f});
 	}
 
 	// ポーズメニュー
@@ -229,19 +237,17 @@ void GameScene::DrawMapEditor() {
 #ifdef _DEBUG
 	ImGui::Begin("Map Editor");
 
-	// CSVファイルのパス
 	ImGui::Text("CSV File");
 	ImGui::SetNextItemWidth(240.0f);
 
 	if (ImGui::InputText("##CSVPath", csvPathBuffer_, sizeof(csvPathBuffer_))) {
 		csvPath_ = csvPathBuffer_;
 	}
-	// CSV保存
+
 	ImGui::SameLine();
 
 	if (ImGui::Button("Save")) {
 		csvPath_ = csvPathBuffer_;
-
 		if (mapChip_.SaveCSV(csvPath_)) {
 			message_ = "Saved successfully.";
 		} else {
@@ -249,10 +255,8 @@ void GameScene::DrawMapEditor() {
 		}
 	}
 
-	// CSV読み込み
 	if (ImGui::Button("Load")) {
 		csvPath_ = csvPathBuffer_;
-
 		if (mapChip_.LoadCSV(csvPath_)) {
 			message_ = "Loaded successfully.";
 		} else {
@@ -262,39 +266,67 @@ void GameScene::DrawMapEditor() {
 
 	ImGui::Separator();
 
-	// 配置・削除モード
+	// 編集モード
 	ImGui::Text("Edit Mode");
-	ImGui::SameLine();
 
+	ImGui::SameLine();
 	if (ImGui::RadioButton("Place", isPlaceMode_)) {
 		isPlaceMode_ = true;
 	}
 
 	ImGui::SameLine();
-
 	if (ImGui::RadioButton("Erase", !isPlaceMode_)) {
 		isPlaceMode_ = false;
 	}
 
+	// 配置するマスの種類
+	ImGui::Separator();
+	ImGui::Text("Cell Type");
+
+	if (ImGui::RadioButton("Normal Block (1)", selectedCellType_ == 1)) {
+		selectedCellType_ = 1;
+	}
+
+	ImGui::SameLine();
+	if (ImGui::RadioButton("Burnable Block (2)", selectedCellType_ == 2)) {
+		selectedCellType_ = 2;
+	}
+
+	ImGui::SameLine();
+	if (ImGui::RadioButton("Player Spawn (3)", selectedCellType_ == 3)) {
+		selectedCellType_ = 3;
+	}
+
 	ImGui::Separator();
 
-	// マップをマス目のボタンとして表示
+	// マップのマスを表示
 	const int rowCount = mapChip_.GetRowCount();
 	const int columnCount = mapChip_.GetColumnCount();
 
 	for (int row = 0; row < rowCount; ++row) {
 		for (int column = 0; column < columnCount; ++column) {
+
 			const int cell = mapChip_.GetCell(row, column);
 
-			// ブロックあり：[1]、空き：[0]
-			const char* label = cell == 1 ? "[1]" : "[0]";
+			const char* label = "[ ]";
 
-			// ボタンのIDが重複しないようにする
+			switch (cell) {
+			case 1:
+				label = "[N]";
+				break;
+			case 2:
+				label = "[B]";
+				break;
+			case 3:
+				label = "[P]";
+				break;
+			}
+
 			ImGui::PushID(row);
 			ImGui::PushID(column);
 
 			if (ImGui::Button(label)) {
-				const int newValue = isPlaceMode_ ? 1 : 0;
+				const int newValue = isPlaceMode_ ? selectedCellType_ : 0;
 
 				if (mapChip_.SetCell(row, column, newValue)) {
 					message_ = "Map edited.";

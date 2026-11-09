@@ -17,7 +17,6 @@ bool MapChip::Initialize(const std::string& csvPath, float blockSize) {
 
 // 更新
 void MapChip::Update() {}
-
 // 描画
 void MapChip::Draw(const Camera& camera) {
 	for (auto& row : blocks_) {
@@ -33,8 +32,9 @@ void MapChip::Draw(const Camera& camera) {
 void MapChip::Finalize() {
 	blocks_.clear();
 	mapData_.clear();
+	playerSpawnPosition_ = {};
+	hasPlayerSpawnPosition_ = false;
 }
-
 // CSV読み込み
 bool MapChip::LoadCSV(const std::string& csvPath) {
 	std::ifstream file(csvPath);
@@ -47,6 +47,9 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 	// 一時的な配列に読み込む
 	std::vector<std::vector<int>> newMapData;
 	std::string line;
+
+	//プレイヤー開始位置が複数ないか
+	int spawnCount = 0;
 
 	while (std::getline(file, line)) {
 		// 空行は無視
@@ -68,9 +71,16 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 				return false;
 			}
 
-			// 0: 空きマス、1: ブロック
-			if (value != 0 && value != 1) {
+			if (value < 0 || value > 3) {
 				return false;
+			}
+            //プレイヤー開始位置の数を確認
+			if (value == 3) {
+				spawnCount++;
+				//開始位置は1つ
+				if (spawnCount > 1) {
+					return false;
+				}
 			}
 
 			rowData.push_back(value);
@@ -108,12 +118,13 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 			UpdateBlock(static_cast<int>(row), static_cast<int>(column));
 		}
 	}
+	//プレイヤー開始位置を更新
+	UpdatePlayerSpawnPosition();
 
 	return true;
 }
-
 // CSV保存
-bool MapChip::SaveCSV(const std::string& csvPath) const {
+bool MapChip::SaveCSV(const std::string& csvPath)  {
 	std::ofstream file(csvPath);
 
 	if (!file.is_open()) {
@@ -135,29 +146,6 @@ bool MapChip::SaveCSV(const std::string& csvPath) const {
 	return file.good();
 }
 
-// 指定したマスのブロックだけを更新
-void MapChip::UpdateBlock(int row, int column) {
-	// ブロックを置かない場合
-	if (mapData_[row][column] == 0) {
-		blocks_[row][column].reset();
-		return;
-	}
-
-	// すでにブロックがある場合は何もしない
-	if (blocks_[row][column]) {
-		return;
-	}
-
-	// マスの位置を計算
-	Vector3 position{static_cast<float>(column) * blockSize_, static_cast<float>(static_cast<int>(mapData_.size()) - 1 - row) * blockSize_, 0.0f};
-
-	// 変更されたマスのブロックだけ生成
-	// blockSize_ を渡すことで、ブロックのスケールとAABB半サイズが
-	// グリッド1マス分に一致し、隣接ブロック間の隙間がなくなる
-	blocks_[row][column] = std::make_unique<Block>();
-	blocks_[row][column]->Initialize(position, blockSize_);
-}
-
 // マスの値を変更
 bool MapChip::SetCell(int row, int column, int value) {
 	// 範囲チェック
@@ -169,13 +157,26 @@ bool MapChip::SetCell(int row, int column, int value) {
 		return false;
 	}
 
-	// 0か1以外は受け付けない
-	if (value != 0 && value != 1) {
+	// 値の範囲チェック
+	if (value < 0 || value > 3) {
 		return false;
+	}
+
+	 // プレイヤー開始位置は1つだけにする
+	if (value == 3) {
+		for (size_t r = 0; r < mapData_.size(); ++r) {
+			for (size_t c = 0; c < mapData_[r].size(); ++c) {
+				if (mapData_[r][c] == 3) {
+					mapData_[r][c] = 0;
+					UpdateBlock(static_cast<int>(r), static_cast<int>(c));
+				}
+			}
+		}
 	}
 
 	// 値が変わらなければ何もしない
 	if (mapData_[row][column] == value) {
+		UpdatePlayerSpawnPosition();
 		return true;
 	}
 
@@ -184,12 +185,14 @@ bool MapChip::SetCell(int row, int column, int value) {
 
 	// 変更されたマスだけ更新
 	UpdateBlock(row, column);
+	//プレイヤー開始位置を更新
+	UpdatePlayerSpawnPosition();
 
 	return true;
 }
 
 // マスの値を取得
-int MapChip::GetCell(int row, int column) const {
+int MapChip::GetCell(int row, int column)  {
 	if (row < 0 || row >= static_cast<int>(mapData_.size())) {
 		return 0;
 	}
@@ -202,10 +205,10 @@ int MapChip::GetCell(int row, int column) const {
 }
 
 // 行数を取得
-int MapChip::GetRowCount() const { return static_cast<int>(mapData_.size()); }
+int MapChip::GetRowCount()  { return static_cast<int>(mapData_.size()); }
 
 // 列数を取得
-int MapChip::GetColumnCount() const {
+int MapChip::GetColumnCount() {
 	if (mapData_.empty()) {
 		return 0;
 	}
@@ -214,7 +217,7 @@ int MapChip::GetColumnCount() const {
 }
 
 // Playerと各BlockのAABB衝突を解決する
-void MapChip::ResolvePlayerCollision(Player& player) const {
+void MapChip::ResolvePlayerCollision(Player& player) {
 	// プレイヤーの現在位置と前フレーム位置を取得
 	Vector3 pos = player.GetPosition();
 	const Vector3 prevPos = player.GetPreviousPosition();
@@ -228,7 +231,7 @@ void MapChip::ResolvePlayerCollision(Player& player) const {
 	for (size_t row = 0; row < blocks_.size(); ++row) {
 		for (size_t column = 0; column < blocks_[row].size(); ++column) {
 			const Block* block = blocks_[row][column].get();
-			if (block == nullptr) {
+			if (block == nullptr || !block->IsActive()) {
 				continue;
 			}
 
@@ -296,4 +299,65 @@ void MapChip::ResolvePlayerCollision(Player& player) const {
 	player.SetPosition(pos);
 	player.SetVerticalVelocity(newVerticalVelocity);
 	player.SetGrounded(grounded);
+}
+// プレイヤー開始位置を取得
+bool MapChip::GetPlayerSpawnPosition(Vector3& position){
+	if (!hasPlayerSpawnPosition_) {
+		return false;
+	}
+
+	position = playerSpawnPosition_;
+	return true;
+}
+//指定したマスのブロックだけ更新
+void MapChip::UpdateBlock(int row, int column) {
+	const int value = mapData_[row][column];
+
+	// 空きマスまたはプレイヤー開始位置
+	if (value == 0 || value == 3) {
+		blocks_[row][column].reset();
+		return;
+	}
+
+	// ブロックの種類を決定
+	BlockType type;
+
+	if (value == 1) {
+		type = BlockType::Normal;
+	} else if (value == 2) {
+		type = BlockType::Burnable;
+	} else {
+		return;
+	}
+
+	// 既存のブロックと種類が同じなら何もしない
+	if (blocks_[row][column] && blocks_[row][column]->GetType() == type) {
+		return;
+	}
+
+	// 種類が違う場合は作り直す
+	blocks_[row][column].reset();
+
+	// マスの位置を計算
+	Vector3 position{static_cast<float>(column) * blockSize_, static_cast<float>(static_cast<int>(mapData_.size()) - 1 - row) * blockSize_, 0.0f};
+
+	blocks_[row][column] = std::make_unique<Block>();
+
+	blocks_[row][column]->Initialize(position, blockSize_, type);
+}
+
+//プレイヤー開始位置を更新
+void MapChip::UpdatePlayerSpawnPosition() {
+	hasPlayerSpawnPosition_ = false;
+
+	for (size_t row = 0; row < mapData_.size(); ++row) {
+		for (size_t column = 0; column < mapData_[row].size(); ++column) {
+			if (mapData_[row][column] == 3) {
+				playerSpawnPosition_ = {static_cast<float>(column) * blockSize_, static_cast<float>(static_cast<int>(mapData_.size()) - 1 - static_cast<int>(row)) * blockSize_, 0.0f};
+
+				hasPlayerSpawnPosition_ = true;
+				return;
+			}
+		}
+	}
 }
