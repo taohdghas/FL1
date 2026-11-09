@@ -1,10 +1,10 @@
 #pragma once
-
+#include "ElementType.h"
 #include <KamataEngine.h>
 
 using namespace KamataEngine;
 
-// Cubeを仮モデルにしたプレイヤー
+//プレイヤー
 class Player {
 public:
 	Player() = default;
@@ -19,23 +19,29 @@ public:
 	const Vector3& GetHalfSize() const;
 	float GetVerticalVelocity() const;
 	bool IsGrounded() const;
+	//現在のエレメント取得
+	ElementType GetElement() const;
 
 	// MapChipの衝突解決から呼び出す
 	void SetPosition(const Vector3& position);
 	void SetVerticalVelocity(float velocity);
 	void SetGrounded(bool grounded);
-
+	//エレメントを設定
+	void SetElement(ElementType element);
 private:
 	Model* model_ = nullptr;
 	WorldTransform worldTransform_{};
+	//現在のエレメント
+	ElementType currentElement_ = ElementType::None;
+	//オブジェクトカラー
+	ObjectColor objectColor_{};
 	Vector3 position_{};
 	Vector3 previousPosition_{};
-
+	Vector3 halfSize_{0.5f, 0.5f, 0.5f};
 	float verticalVelocity_ = 0.0f;
 	float moveSpeed_ = 0.12f;
 	float jumpPower_ = 0.28f;
 	float gravity_ = 0.012f;
-	Vector3 halfSize_{0.5f, 0.5f, 0.5f};
 	bool isGrounded_ = false;
 	bool isInitialized_ = false;
 };

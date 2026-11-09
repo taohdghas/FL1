@@ -25,6 +25,11 @@ void Player::Initialize(const Vector3& position) {
 	worldTransform_.TransferMatrix();
 
 	isInitialized_ = true;
+	// 現在のエレメントを初期化
+	currentElement_ = ElementType::None;
+	// オブジェクトカラーを初期化
+	objectColor_.Initialize();
+	objectColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
 }
 
 void Player::Update() {
@@ -64,7 +69,7 @@ void Player::Draw(const Camera& camera) {
 	if (!isInitialized_ || model_ == nullptr) {
 		return;
 	}
-	model_->Draw(worldTransform_, camera);
+	model_->Draw(worldTransform_, camera,&objectColor_);
 }
 
 const Vector3& Player::GetPosition() const { return position_; }
@@ -72,7 +77,7 @@ const Vector3& Player::GetPreviousPosition() const { return previousPosition_; }
 const Vector3& Player::GetHalfSize() const { return halfSize_; }
 float Player::GetVerticalVelocity() const { return verticalVelocity_; }
 bool Player::IsGrounded() const { return isGrounded_; }
-
+ElementType Player::GetElement() const { return currentElement_; }
 void Player::SetPosition(const Vector3& position) {
 	position_ = position;
 	// 衝突補正後も同じフレームで描画位置に反映する
@@ -82,3 +87,34 @@ void Player::SetPosition(const Vector3& position) {
 }
 void Player::SetVerticalVelocity(float velocity) { verticalVelocity_ = velocity; }
 void Player::SetGrounded(bool grounded) { isGrounded_ = grounded; }
+void Player::SetElement(ElementType element) { 
+	currentElement_ = element; 
+
+	switch (currentElement_) {
+	case ElementType::None:
+		objectColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
+		break;
+	case ElementType::Fire:
+		// 火：赤
+		objectColor_.SetColor({1.0f, 0.0f, 0.0f, 1.0f});
+		break;
+	case ElementType::Water:
+		// 水：青
+		objectColor_.SetColor({0.0f, 0.4f, 1.0f, 1.0f});
+		break;
+	case ElementType::Stone:
+		// 石：灰色
+		objectColor_.SetColor({0.5f, 0.5f, 0.5f, 1.0f});
+		break;
+
+	case ElementType::Gas:
+		// 気体：緑
+		objectColor_.SetColor({0.0f, 1.0f, 0.3f, 1.0f});
+		break;
+
+	case ElementType::Electric:
+		// 電気：黄色
+		objectColor_.SetColor({1.0f, 1.0f, 0.0f, 1.0f});
+		break;
+	}
+}
