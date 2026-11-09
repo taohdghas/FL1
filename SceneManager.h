@@ -2,18 +2,14 @@
 #include "Scene.h"
 #include <memory>
 
-enum class SceneType {
-	Title,
-	Select,
-	Game
-};
+enum class SceneType { Title, Select, Game, End };
 
 class SceneManager {
 public:
-	void Initialize();//初期化
-	void Finalize();   //終了
-	void Update();    //更新
-	void Draw();     //描画
+	void Initialize(); // 初期化
+	void Finalize();   // 終了
+	void Update();     // 更新
+	void Draw();       // 描画
 	// シーンを変更
 	void ChangeScene(SceneType sceneType);
 

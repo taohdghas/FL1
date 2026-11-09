@@ -9,22 +9,28 @@ Model* Block::burnableModel_ = nullptr;
 
 Block::~Block() {}
 
-void Block::Initialize(const Vector3& position, float size, BlockType type) {
+void Block::Initialize(const Vector3& position, float size, bool isGoal, BlockType type) {
 	position_ = position;
 	type_ = type;
 	isActive_ = true;
-	// モデルが読み込まれてなければ読み込む
-	//通常
-	if (normalModel_ == nullptr) {
-		normalModel_ = Model::CreateFromOBJ("cube");
-	}
-	//燃える
-	if (burnableModel_ == nullptr) {
-		burnableModel_ = Model::CreateFromOBJ("burn");
-	}
+  isGoal_ = isGoal;
+	 // モデルが読み込まれていなければ読み込む
+    // 通常
+    if (normalModel_ == nullptr) {
+        normalModel_ = Model::CreateFromOBJ("cube");
+    }
+
+    // 燃える
+    if (burnableModel_ == nullptr) {
+        burnableModel_ = Model::CreateFromOBJ("burn");
+    }
+
+    // ゴール
+    if (isGoal_) {
+        goalModel_ = Model::CreateFromOBJ("cube");
+    }
 
 	worldTransform_.Initialize();
-
 	// 見た目は元のサイズのまま
 	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
 	worldTransform_.translation_ = position_;

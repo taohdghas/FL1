@@ -15,7 +15,7 @@ public:
 	~Block();
 
 	//初期化
-	void Initialize(const Vector3& position, float size = 1.0f,BlockType type = BlockType::Normal);
+	void Initialize(const Vector3& position, float size = 1.0f, bool isGoal = false,BlockType type = BlockType::Normal);
     //共有モデル解放
 	static void FinalizeModels();
 	//更新
@@ -36,6 +36,9 @@ public:
 	//ブロック種類を取得
 	BlockType GetType() const { return type_; }
 
+	// 終点ブロックか
+	bool IsGoal() const { return isGoal_; }
+
 private:
 	//種類ごとの共有モデル
 	static Model* normalModel_; // 通常ブロック
@@ -46,4 +49,5 @@ private:
 	Vector3 halfSize_{0.5f, 0.5f, 0.5f};
 	bool isInitialized_ = false;
 	bool isActive_ = true;//ブロックが存在しているか
+	bool isGoal_ = false;
 };

@@ -18,6 +18,10 @@ public:
 
 	// Playerと各BlockのAABB衝突を解決する
 	void ResolvePlayerCollision(Player& player) ;
+	// プレイヤーが終点に到達したか（AABB重なり）
+	bool HasPlayerReachedGoal(const Player& player) const;
+	// マップに終点が存在するか
+	bool HasGoal() const { return hasGoal_; }
 	void Draw(const Camera& camera);
 	void Finalize();
 
@@ -50,4 +54,6 @@ private:
 	Vector3 playerSpawnPosition_{};
 	// プレイヤー開始位置が設定されているか
 	bool hasPlayerSpawnPosition_ = false;
+	// 終点が存在するか
+	bool hasGoal_ = false;
 };

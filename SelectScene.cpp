@@ -1,6 +1,6 @@
 #include "SelectScene.h"
 
-//初期化
+// 初期化
 void SelectScene::Initialize() {}
 // 終了
 void SelectScene::Finalize() {}
