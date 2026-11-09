@@ -261,8 +261,19 @@ void GameScene::LoadStage(int index) {
 		message_ = "Failed to load stage " + std::to_string(index + 1);
 	}
 
-	// プレイヤー初期位置をリセット
-	player_.Initialize({0.0f, 5.0f, 0.0f});
+	// CSVからプレイヤーの初期位置を取得
+	Vector3 spawnPosition;
+
+	if (mapChip_.GetPlayerSpawnPosition(spawnPosition)) {
+		player_.SetPosition(spawnPosition);
+	} else {
+		// スポーン位置が設定されていない場合
+		player_.SetPosition({0.0f, 5.0f, 0.0f});
+	}
+
+	// プレイヤーの物理状態をリセット
+	player_.SetVerticalVelocity(0.0f);
+	player_.SetGrounded(false);
 
 	// クリア判定・リセット状態をリセット
 	isClearTriggered_ = false;
@@ -278,6 +289,7 @@ void GameScene::LoadStage(int index) {
 	if (elementSystem_) {
 		elementSystem_->Clear();
 	}
+
 	if (player_.GetElement() != ElementType::None) {
 		player_.SetElement(ElementType::None);
 	}
