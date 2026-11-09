@@ -23,5 +23,5 @@ private:
 	float getDeltaTime();
 
 	Sprite* title_;
-	uint32_t titleTexture_ = TextureManager::Load("uvChecker.png");
+	uint32_t titleTexture_ = TextureManager::Load("title.jpg");
 };

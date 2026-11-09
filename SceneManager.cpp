@@ -2,6 +2,7 @@
 #include "TitleScene.h"
 #include "SelectScene.h"
 #include "GameScene.h"
+#include "Clear.h"
 
 //初期化
 void SceneManager::Initialize() {
@@ -51,7 +52,11 @@ std::unique_ptr<Scene> SceneManager::CreateScene(SceneType sceneType) {
 
 	case SceneType::Game:
 		return std::make_unique<GameScene>();
+
+	case SceneType::Clear:
+		return std::make_unique<Clear>();
 	}
+
 
 	return nullptr;
 }

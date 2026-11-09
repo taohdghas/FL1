@@ -18,6 +18,7 @@ void SelectScene::Initialize() {
 	prevTime_ = std::chrono::high_resolution_clock::now();
 	fader.fadeIn(1.0f);
 
+	isPush = false;
 	isPushTitle = false;
 	isPushGame = false;
 }
@@ -31,26 +32,26 @@ void SelectScene::Update() {
 	fader.update(dt);
 
 	// SPACEキーでゲーム画面へ                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-	if (Input::GetInstance()->PushKey(DIK_SPACE)) {
-		isPushTitle = false;
+	if (!isPush && Input::GetInstance()->PushKey(DIK_SPACE)) {
+		isPush = true;
 		isPushGame = true;
 		fader.fadeOut(1.0f);
 	}
 
 	// ENTERキーでタイトル画面へ
-	if (Input::GetInstance()->PushKey(DIK_RETURN)) {
+	if (!isPush && Input::GetInstance()->PushKey(DIK_RETURN)) {
+		isPush = true;
 		isPushTitle = true;
-		isPushGame = false;
 		fader.fadeOut(1.0f);
 	}
 
 	// フェードアウト完了後にシーン遷移
 	if (fader.isFinished() && fader.getAlpha() <= 0.0f) {
-		if (isPushTitle && !isPushGame) {
+		if (isPushTitle) {
 			nextScene_ = SceneType::Title;
 		}
 
-		if (!isPushTitle && isPushGame) {
+		if (isPushGame) {
 			nextScene_ = SceneType::Game;
 		}
 	}

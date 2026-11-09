@@ -17,6 +17,7 @@ public:
 
 private:
 	SceneType nextScene_ = SceneType::None;
+	bool isPush;
 	bool isPushTitle;
 	bool isPushGame;
 
