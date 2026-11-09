@@ -3,42 +3,56 @@
 
 using namespace KamataEngine;
 
-Block::~Block() {
-	delete model_;
-	model_ = nullptr;
-}
+// 共有モデル実体
+Model* Block::normalModel_ = nullptr;
+Model* Block::burnableModel_ = nullptr;
 
-void Block::Initialize(const Vector3& position, float size, bool isGoal) {
+Block::~Block() {}
+
+void Block::Initialize(const Vector3& position, float size, bool isGoal, BlockType type) {
 	position_ = position;
-	isGoal_ = isGoal;
+	type_ = type;
+	isActive_ = true;
+  isGoal_ = isGoal;
+	 // モデルが読み込まれていなければ読み込む
+    // 通常
+    if (normalModel_ == nullptr) {
+        normalModel_ = Model::CreateFromOBJ("cube");
+    }
 
-	// 終点は専用モデルがあれば差し替える。無ければ cube を使う。
-	if (isGoal_) {
-		model_ = Model::CreateFromOBJ("cube");
-		if (model_ == nullptr) {
-			model_ = Model::CreateFromOBJ("cube");
-		}
-	} else {
-		model_ = Model::CreateFromOBJ("cube");
-	}
+    // 燃える
+    if (burnableModel_ == nullptr) {
+        burnableModel_ = Model::CreateFromOBJ("burn");
+    }
+
+    // ゴール
+    if (isGoal_) {
+        goalModel_ = Model::CreateFromOBJ("cube");
+    }
 
 	worldTransform_.Initialize();
-
-	// 見た目は元のサイズのまま。終点は少し大きくして視認性を上げる
-	float visualScale = isGoal_ ? 1.05f : 1.0f;
-	worldTransform_.scale_ = {visualScale, visualScale, visualScale};
+	// 見た目は元のサイズのまま
+	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
 
-	// 衝突判定のAABBはグリッド1マス分（size）に合わせる。
+	// 衝突判定のAABBはグリッド1マス分に合わせる
 	halfSize_ = {0.5f * size, 0.5f * size, 0.5f * size};
 
 	isInitialized_ = true;
 }
+//共有モデル解放
+void Block::FinalizeModels() { 
+	delete normalModel_;
+	delete burnableModel_;
+	normalModel_ = nullptr;
+	burnableModel_ = nullptr;
+}
 
+// 更新
 void Block::Update() {
-	if (!isInitialized_) {
+	if (!isInitialized_ || !isActive_) {
 		return;
 	}
 
@@ -46,12 +60,33 @@ void Block::Update() {
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
 }
-
+// 描画
 void Block::Draw(const Camera& camera) {
-	if (!isInitialized_ || model_ == nullptr) {
+	if (!isInitialized_ || !isActive_ ) {
 		return;
 	}
-	model_->Draw(worldTransform_, camera);
+	//ブロックの種類に応じてモデルを選択
+	Model* drawModel = nullptr;
+	
+	switch (type_) {
+	case BlockType::Normal:
+		drawModel = normalModel_;
+		break;
+	case BlockType::Burnable:
+		drawModel = burnableModel_;
+		break;
+	}
+	if (drawModel != nullptr) {
+		drawModel->Draw(worldTransform_, camera);
+	}
+}
+// 燃える
+void Block::Burn() {
+	// 燃えるブロック以外は燃えない
+	if (!IsBurnable()) {
+		return;
+	}
+	isActive_ = false;
 }
 
 void Block::SetPosition(const Vector3& position) { position_ = position; }

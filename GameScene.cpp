@@ -17,14 +17,22 @@ void GameScene::Initialize() {
 	// CSVパスを入力欄に設定
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
 
-	// プレイヤーを初期化（仮の地面の高さはY=0.5）
-	player_.Initialize({0.0f, 5.0f, 0.0f});
-
 	// マップを読み込む
 	if (mapChip_.Initialize(csvPath_, 2.0f)) {
 		message_ = "Map loaded.";
 	} else {
 		message_ = "Failed to load map.";
+	}
+
+	 // プレイヤーの初期位置を設定
+	Vector3 spawnPosition;
+
+	if (mapChip_.GetPlayerSpawnPosition(spawnPosition)) {
+		// CSVにプレイヤー配置マス（3）がある場合
+		player_.Initialize(spawnPosition);
+	} else {
+		// 配置マスがない場合の初期位置
+		player_.Initialize({0.0f, 5.0f, 0.0f});
 	}
 
 	// ポーズメニュー
@@ -61,6 +69,7 @@ void GameScene::Initialize() {
 // 終了
 void GameScene::Finalize() {
 	mapChip_.Finalize();      // マップチップ
+	Block::FinalizeModels();  // ブロックの共有モデル解放
 	ui_->Finalize();          // ポーズメニュー
 	delete resetMeterSprite_; // リセットゲージスプライト
 	// 数字スプライトの削除
@@ -88,8 +97,8 @@ void GameScene::Finalize() {
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
+	//プレイヤーの更新
 	player_.Update();
-
 	// プレイヤーとブロックの衝突解決（終点はスキップされる）
 	mapChip_.ResolvePlayerCollision(player_);
 
@@ -141,6 +150,8 @@ void GameScene::Update() {
 	playerScreenPosition_ = GetPlayerScreenPosition();
 	// エレメントシステムの更新
 	elementSystem_->Update(1.0f / 60.0f);
+	// プレイヤーのスクリーン座標を取得
+	playerScreenPosition_ = GetPlayerScreenPosition();
 	// エレメントUIの更新
 	ElementType connectedElement = elementUI_->Update(playerScreenPosition_);
 	// 接続に成功したら切り替える
@@ -149,7 +160,8 @@ void GameScene::Update() {
 	}
 	// エレメントシステムの状態をプレイヤーに反映
 	player_.SetElement(elementSystem_->GetCurrentElement());
-
+	// プレイヤーとブロックの衝突解決
+	mapChip_.ResolvePlayerCollision(player_);
 	// デバッグ表示
 #ifdef _DEBUG
 	elementUI_->Debug(*elementSystem_, playerScreenPosition_);
@@ -297,106 +309,168 @@ void GameScene::CheckGoal() {
 #pragma region マップエディタ
 void GameScene::DrawMapEditor() {
 #ifdef _DEBUG
-	ImGui::Begin("Map Editor");
+    ImGui::Begin("Map Editor");
 
-	// CSVファイルのパス
-	ImGui::Text("CSV File");
-	ImGui::SetNextItemWidth(240.0f);
+    ImGui::Text("CSV File");
+    ImGui::SetNextItemWidth(240.0f);
 
-	if (ImGui::InputText("##CSVPath", csvPathBuffer_, sizeof(csvPathBuffer_))) {
-		csvPath_ = csvPathBuffer_;
-	}
-	// CSV保存
-	ImGui::SameLine();
+    if (ImGui::InputText("##CSVPath", csvPathBuffer_, sizeof(csvPathBuffer_))) {
+        csvPath_ = csvPathBuffer_;
+    }
 
-	if (ImGui::Button("Save")) {
-		csvPath_ = csvPathBuffer_;
+    ImGui::SameLine();
 
-		if (mapChip_.SaveCSV(csvPath_)) {
-			message_ = "Saved successfully.";
-		} else {
-			message_ = "Failed to save CSV.";
-		}
-	}
+    // CSV保存
+    if (ImGui::Button("Save")) {
+        csvPath_ = csvPathBuffer_;
 
-	// CSV読み込み
-	if (ImGui::Button("Load")) {
-		csvPath_ = csvPathBuffer_;
+        if (mapChip_.SaveCSV(csvPath_)) {
+            message_ = "Saved successfully.";
+        } else {
+            message_ = "Failed to save CSV.";
+        }
+    }
 
-		if (mapChip_.LoadCSV(csvPath_)) {
-			message_ = "Loaded successfully.";
-		} else {
-			message_ = "Failed to load CSV.";
-		}
-	}
+    // CSV読み込み
+    if (ImGui::Button("Load")) {
+        csvPath_ = csvPathBuffer_;
 
-	ImGui::Separator();
+        if (mapChip_.LoadCSV(csvPath_)) {
 
-	// 配置・削除・終点モード
-	ImGui::Text("Edit Mode");
-	ImGui::SameLine();
+            // プレイヤーの開始位置を取得
+            Vector3 spawnPosition;
 
-	if (ImGui::RadioButton("Place", editMode_ == EditMode::Place)) {
-		editMode_ = EditMode::Place;
-	}
-	ImGui::SameLine();
-	if (ImGui::RadioButton("Erase", editMode_ == EditMode::Erase)) {
-		editMode_ = EditMode::Erase;
-	}
-	ImGui::SameLine();
-	if (ImGui::RadioButton("Goal", editMode_ == EditMode::Goal)) {
-		editMode_ = EditMode::Goal;
-	}
+            if (mapChip_.GetPlayerSpawnPosition(spawnPosition)) {
+                // プレイヤーを開始位置に戻す
+                player_.SetPosition(spawnPosition);
 
-	ImGui::Separator();
+                // 落下速度をリセット
+                player_.SetVerticalVelocity(0.0f);
 
-	// マップをマス目のボタンとして表示
-	const int rowCount = mapChip_.GetRowCount();
-	const int columnCount = mapChip_.GetColumnCount();
+                // 接地状態をリセット
+                player_.SetGrounded(false);
+            }
 
-	for (int row = 0; row < rowCount; ++row) {
-		for (int column = 0; column < columnCount; ++column) {
-			const int cell = mapChip_.GetCell(row, column);
+            message_ = "Loaded successfully.";
+        } else {
+            message_ = "Failed to load CSV.";
+        }
+    }
 
-			// 0:空き、1:ブロック、2:終点
-			const char* label = cell == 1 ? "[1]" : (cell == 2 ? "[2]" : "[0]");
+    ImGui::Separator();
 
-			// ボタンのIDが重複しないようにする
-			ImGui::PushID(row);
-			ImGui::PushID(column);
+    // 編集モード
+    ImGui::Text("Edit Mode");
 
-			if (ImGui::Button(label)) {
-				int newValue = 0;
-				switch (editMode_) {
-				case EditMode::Place:
-					newValue = 1;
-					break;
-				case EditMode::Erase:
-					newValue = 0;
-					break;
-				case EditMode::Goal:
-					newValue = 2;
-					break;
-				}
+    if (ImGui::RadioButton("Place", editMode_ == EditMode::Place)) {
+        editMode_ = EditMode::Place;
+    }
 
-				if (mapChip_.SetCell(row, column, newValue)) {
-					message_ = "Map edited.";
-				}
-			}
+    ImGui::SameLine();
 
-			ImGui::PopID();
-			ImGui::PopID();
+    if (ImGui::RadioButton("Erase", editMode_ == EditMode::Erase)) {
+        editMode_ = EditMode::Erase;
+    }
 
-			if (column + 1 < columnCount) {
-				ImGui::SameLine();
-			}
-		}
-	}
+    ImGui::SameLine();
 
-	ImGui::Separator();
-	ImGui::Text("%s", message_.c_str());
+    if (ImGui::RadioButton("Goal", editMode_ == EditMode::Goal)) {
+        editMode_ = EditMode::Goal;
+    }
 
-	ImGui::End();
+    // 配置するマスの種類
+    ImGui::Separator();
+    ImGui::Text("Cell Type");
+
+    if (ImGui::RadioButton("Normal Block (1)", selectedCellType_ == 1)) {
+        selectedCellType_ = 1;
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::RadioButton("Burnable Block (4)", selectedCellType_ == 4)) {
+        selectedCellType_ = 4;
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::RadioButton("Player Spawn (3)", selectedCellType_ == 3)) {
+        selectedCellType_ = 3;
+    }
+
+    ImGui::Separator();
+
+    // マップのマスを表示
+    const int rowCount = mapChip_.GetRowCount();
+    const int columnCount = mapChip_.GetColumnCount();
+
+    for (int row = 0; row < rowCount; ++row) {
+        for (int column = 0; column < columnCount; ++column) {
+
+            const int cell = mapChip_.GetCell(row, column);
+
+            // マスの表示名
+            const char* label = "[ ]";
+
+            switch (cell) {
+            case 1:
+                label = "[N]";
+                break;
+
+            case 2:
+                label = "[G]";
+                break;
+
+            case 3:
+                label = "[P]";
+                break;
+
+            case 4:
+                label = "[B]";
+                break;
+            }
+
+            ImGui::PushID(row);
+            ImGui::PushID(column);
+
+            if (ImGui::Button(label)) {
+
+                int newValue = 0;
+
+                // 編集モードに応じて配置する値を決定
+                switch (editMode_) {
+
+                case EditMode::Place:
+                    newValue = selectedCellType_;
+                    break;
+
+                case EditMode::Erase:
+                    newValue = 0;
+                    break;
+
+                case EditMode::Goal:
+                    newValue = 2;
+                    break;
+                }
+
+                if (mapChip_.SetCell(row, column, newValue)) {
+                    message_ = "Map edited.";
+                }
+            }
+
+            ImGui::PopID();
+            ImGui::PopID();
+
+            if (column + 1 < columnCount) {
+                ImGui::SameLine();
+            }
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("%s", message_.c_str());
+
+    ImGui::End();
 #endif
 }
 #pragma endregion
