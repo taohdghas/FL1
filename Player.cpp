@@ -80,6 +80,7 @@ bool Player::IsGrounded() const { return isGrounded_; }
 ElementType Player::GetElement() const { return currentElement_; }
 void Player::SetPosition(const Vector3& position) {
 	position_ = position;
+	previousPosition_ = position;
 	// 衝突補正後も同じフレームで描画位置に反映する
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);

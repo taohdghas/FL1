@@ -14,9 +14,13 @@ public:
 	Block() = default;
 	~Block();
 
-	// size: 衝突判定（AABB）の1辺の大きさ。
+	//初期化
 	void Initialize(const Vector3& position, float size = 1.0f,BlockType type = BlockType::Normal);
+    //共有モデル解放
+	static void FinalizeModels();
+	//更新
 	void Update();
+	//描画
 	void Draw(const Camera& camera);
 	//燃やす
 	void Burn();
@@ -33,7 +37,9 @@ public:
 	BlockType GetType() const { return type_; }
 
 private:
-	Model* model_ = nullptr;
+	//種類ごとの共有モデル
+	static Model* normalModel_; // 通常ブロック
+	static Model* burnableModel_; // 燃えるブロック
 	WorldTransform worldTransform_{};
 	BlockType type_ = BlockType::Normal;
 	Vector3 position_{};

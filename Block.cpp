@@ -3,16 +3,25 @@
 
 using namespace KamataEngine;
 
-Block::~Block() {
-	delete model_;
-	model_ = nullptr;
-}
+// 共有モデル実体
+Model* Block::normalModel_ = nullptr;
+Model* Block::burnableModel_ = nullptr;
+
+Block::~Block() {}
 
 void Block::Initialize(const Vector3& position, float size, BlockType type) {
 	position_ = position;
 	type_ = type;
 	isActive_ = true;
-	model_ = Model::CreateFromOBJ("cube");
+	// モデルが読み込まれてなければ読み込む
+	//通常
+	if (normalModel_ == nullptr) {
+		normalModel_ = Model::CreateFromOBJ("cube");
+	}
+	//燃える
+	if (burnableModel_ == nullptr) {
+		burnableModel_ = Model::CreateFromOBJ("burn");
+	}
 
 	worldTransform_.Initialize();
 
@@ -27,7 +36,15 @@ void Block::Initialize(const Vector3& position, float size, BlockType type) {
 
 	isInitialized_ = true;
 }
-//更新
+//共有モデル解放
+void Block::FinalizeModels() { 
+	delete normalModel_;
+	delete burnableModel_;
+	normalModel_ = nullptr;
+	burnableModel_ = nullptr;
+}
+
+// 更新
 void Block::Update() {
 	if (!isInitialized_ || !isActive_) {
 		return;
@@ -37,17 +54,32 @@ void Block::Update() {
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
 }
-//描画
+// 描画
 void Block::Draw(const Camera& camera) {
-	if (!isInitialized_ || !isActive_ || model_ == nullptr) {
+	if (!isInitialized_ || !isActive_ ) {
 		return;
 	}
-	model_->Draw(worldTransform_, camera);
+	//ブロックの種類に応じてモデルを選択
+	Model* drawModel = nullptr;
+	
+	switch (type_) {
+	case BlockType::Normal:
+		drawModel = normalModel_;
+		break;
+	case BlockType::Burnable:
+		drawModel = burnableModel_;
+		break;
+	}
+	if (drawModel != nullptr) {
+		drawModel->Draw(worldTransform_, camera);
+	}
 }
-//燃える
-void Block::Burn() { 
-	//燃えるブロック以外は燃えない
-	if (!IsBurnable()) { return; }
+// 燃える
+void Block::Burn() {
+	// 燃えるブロック以外は燃えない
+	if (!IsBurnable()) {
+		return;
+	}
 	isActive_ = false;
 }
 

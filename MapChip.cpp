@@ -222,7 +222,7 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 	Vector3 pos = player.GetPosition();
 	const Vector3 prevPos = player.GetPreviousPosition();
 	const Vector3 playerHalf = player.GetHalfSize();
-
+	const ElementType playerElement = player.GetElement();
 	// 接地フラグ（このフレームで地面に触れたか）
 	bool grounded = false;
 	// 垂直速度の上書き用
@@ -230,7 +230,7 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 
 	for (size_t row = 0; row < blocks_.size(); ++row) {
 		for (size_t column = 0; column < blocks_[row].size(); ++column) {
-			const Block* block = blocks_[row][column].get();
+		    Block* block = blocks_[row][column].get();
 			if (block == nullptr || !block->IsActive()) {
 				continue;
 			}
@@ -247,13 +247,19 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 				continue; // このブロックとは当たっていない
 			}
 
+			//火エレメント接続中に燃えるブロックに触れた時
+			if (playerElement == ElementType::Fire && block->IsBurnable()) {
+				block->Burn();
+				continue;
+			}
+
 			// 前フレームでY方向に重なっていたか
 			const bool prevOverlapY = std::abs(prevPos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
 
-			// 前フレームでY方向に重なっていなかった → 縦方向の衝突
+			// Y方向の重なりが新たに発生した場合、Y方向の解決を優先する
 			if (!prevOverlapY) {
 				if (pos.y > blockPos.y) {
-					// 上に乗っている（着地）
+					// 上に乗っている
 					pos.y = blockPos.y + blockHalf.y + playerHalf.y;
 
 					if (newVerticalVelocity <= 0.0f) {
@@ -272,8 +278,6 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 				continue;
 			}
 
-			// ここに来る = 前フレームからY方向には重なっていた → 横方向の衝突
-			// X軸とZ軸のめり込み量を比較して、小さい方の軸で押し戻す
 			const float penX = (playerHalf.x + blockHalf.x) - std::abs(pos.x - blockPos.x);
 			const float penZ = (playerHalf.z + blockHalf.z) - std::abs(pos.z - blockPos.z);
 

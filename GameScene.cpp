@@ -66,6 +66,7 @@ void GameScene::Initialize() {
 // 終了
 void GameScene::Finalize() {
 	mapChip_.Finalize();      // マップチップ
+	Block::FinalizeModels();  // ブロックの共有モデル解放
 	ui_->Finalize();          // ポーズメニュー
 	delete resetMeterSprite_; // リセットゲージスプライト
 	// 数字スプライトの削除
@@ -92,11 +93,8 @@ void GameScene::Finalize() {
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
+	//プレイヤーの更新
 	player_.Update();
-
-	// プレイヤーとブロックの衝突解決
-	mapChip_.ResolvePlayerCollision(player_);
-
 	// マップエディタ
 	DrawMapEditor();
 	// UI更新
@@ -136,10 +134,10 @@ void GameScene::Update() {
 	// カメラ行列を更新
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
-	// プレイヤーのスクリーン座標を取得 
-	playerScreenPosition_ = GetPlayerScreenPosition();
 	// エレメントシステムの更新
 	elementSystem_->Update(1.0f / 60.0f);
+	// プレイヤーのスクリーン座標を取得
+	playerScreenPosition_ = GetPlayerScreenPosition();
 	// エレメントUIの更新
 	ElementType connectedElement = elementUI_->Update(playerScreenPosition_);
 	//接続に成功したら切り替える
@@ -149,7 +147,8 @@ void GameScene::Update() {
 	}
 	//エレメントシステムの状態をプレイヤーに反映
 	player_.SetElement(elementSystem_->GetCurrentElement());
-
+	// プレイヤーとブロックの衝突解決
+	mapChip_.ResolvePlayerCollision(player_);
 	// デバッグ表示
 #ifdef _DEBUG
 	elementUI_->Debug(*elementSystem_, playerScreenPosition_);
@@ -257,7 +256,22 @@ void GameScene::DrawMapEditor() {
 
 	if (ImGui::Button("Load")) {
 		csvPath_ = csvPathBuffer_;
+
 		if (mapChip_.LoadCSV(csvPath_)) {
+			// プレイヤーの開始位置を取得
+			Vector3 spawnPosition;
+
+			if (mapChip_.GetPlayerSpawnPosition(spawnPosition)) {
+				// プレイヤーを開始位置に戻す
+				player_.SetPosition(spawnPosition);
+				
+				// 落下速度をリセット
+				player_.SetVerticalVelocity(0.0f);
+
+				// 接地状態をリセット
+				player_.SetGrounded(false);
+			}
+
 			message_ = "Loaded successfully.";
 		} else {
 			message_ = "Failed to load CSV.";
