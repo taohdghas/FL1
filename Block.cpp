@@ -8,20 +8,30 @@ Block::~Block() {
 	model_ = nullptr;
 }
 
-void Block::Initialize(const Vector3& position, float size) {
+void Block::Initialize(const Vector3& position, float size, bool isGoal) {
 	position_ = position;
-	model_ = Model::CreateFromOBJ("cube");
+	isGoal_ = isGoal;
+
+	// 終点は専用モデルがあれば差し替える。無ければ cube を使う。
+	if (isGoal_) {
+		model_ = Model::CreateFromOBJ("cube");
+		if (model_ == nullptr) {
+			model_ = Model::CreateFromOBJ("cube");
+		}
+	} else {
+		model_ = Model::CreateFromOBJ("cube");
+	}
 
 	worldTransform_.Initialize();
 
-	// 見た目は元のサイズのまま（cube.obj を1×1×1として扱う）
-	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
+	// 見た目は元のサイズのまま。終点は少し大きくして視認性を上げる
+	float visualScale = isGoal_ ? 1.05f : 1.0f;
+	worldTransform_.scale_ = {visualScale, visualScale, visualScale};
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
 
 	// 衝突判定のAABBはグリッド1マス分（size）に合わせる。
-	// これにより隣接ブロック間に衝突の隙間ができない。
 	halfSize_ = {0.5f * size, 0.5f * size, 0.5f * size};
 
 	isInitialized_ = true;

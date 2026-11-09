@@ -33,6 +33,7 @@ void MapChip::Draw(const Camera& camera) {
 void MapChip::Finalize() {
 	blocks_.clear();
 	mapData_.clear();
+	hasGoal_ = false;
 }
 
 // CSV読み込み
@@ -68,8 +69,8 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 				return false;
 			}
 
-			// 0: 空きマス、1: ブロック
-			if (value != 0 && value != 1) {
+			// 0: 空きマス、1: ブロック、2: 終点
+			if (value != 0 && value != 1 && value != 2) {
 				return false;
 			}
 
@@ -101,10 +102,15 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 	blocks_.clear();
 	blocks_.resize(mapData_.size());
 
+	hasGoal_ = false;
+
 	for (size_t row = 0; row < mapData_.size(); ++row) {
 		blocks_[row].resize(mapData_[row].size());
 
 		for (size_t column = 0; column < mapData_[row].size(); ++column) {
+			if (mapData_[row][column] == 2) {
+				hasGoal_ = true;
+			}
 			UpdateBlock(static_cast<int>(row), static_cast<int>(column));
 		}
 	}
@@ -151,11 +157,10 @@ void MapChip::UpdateBlock(int row, int column) {
 	// マスの位置を計算
 	Vector3 position{static_cast<float>(column) * blockSize_, static_cast<float>(static_cast<int>(mapData_.size()) - 1 - row) * blockSize_, 0.0f};
 
-	// 変更されたマスのブロックだけ生成
-	// blockSize_ を渡すことで、ブロックのスケールとAABB半サイズが
-	// グリッド1マス分に一致し、隣接ブロック間の隙間がなくなる
+	bool isGoal = (mapData_[row][column] == 2);
+
 	blocks_[row][column] = std::make_unique<Block>();
-	blocks_[row][column]->Initialize(position, blockSize_);
+	blocks_[row][column]->Initialize(position, blockSize_, isGoal);
 }
 
 // マスの値を変更
@@ -169,8 +174,8 @@ bool MapChip::SetCell(int row, int column, int value) {
 		return false;
 	}
 
-	// 0か1以外は受け付けない
-	if (value != 0 && value != 1) {
+	// 0 / 1 / 2 以外は受け付けない
+	if (value != 0 && value != 1 && value != 2) {
 		return false;
 	}
 
@@ -182,7 +187,21 @@ bool MapChip::SetCell(int row, int column, int value) {
 	// マップデータを変更
 	mapData_[row][column] = value;
 
-	// 変更されたマスだけ更新
+	// 終点フラグを再計算
+	hasGoal_ = false;
+	for (auto& rowData : mapData_) {
+		for (int v : rowData) {
+			if (v == 2) {
+				hasGoal_ = true;
+				break;
+			}
+		}
+		if (hasGoal_)
+			break;
+	}
+
+	// 変更されたマスを破棄して再生成（値が変わったので）
+	blocks_[row][column].reset();
 	UpdateBlock(row, column);
 
 	return true;
@@ -229,6 +248,11 @@ void MapChip::ResolvePlayerCollision(Player& player) const {
 		for (size_t column = 0; column < blocks_[row].size(); ++column) {
 			const Block* block = blocks_[row][column].get();
 			if (block == nullptr) {
+				continue;
+			}
+
+			// 終点は当たり判定を持たない（プレイヤーがすり抜けて到達判定できる）
+			if (block->IsGoal()) {
 				continue;
 			}
 
@@ -296,4 +320,32 @@ void MapChip::ResolvePlayerCollision(Player& player) const {
 	player.SetPosition(pos);
 	player.SetVerticalVelocity(newVerticalVelocity);
 	player.SetGrounded(grounded);
+}
+
+// プレイヤーが終点に到達したか
+bool MapChip::HasPlayerReachedGoal(const Player& player) const {
+	const Vector3 pos = player.GetPosition();
+	const Vector3 playerHalf = player.GetHalfSize();
+
+	for (size_t row = 0; row < blocks_.size(); ++row) {
+		for (size_t column = 0; column < blocks_[row].size(); ++column) {
+			const Block* block = blocks_[row][column].get();
+			if (block == nullptr || !block->IsGoal()) {
+				continue;
+			}
+
+			const Vector3 blockPos = block->GetPosition();
+			const Vector3 blockHalf = block->GetHalfSize();
+
+			const bool overlapX = std::abs(pos.x - blockPos.x) < (playerHalf.x + blockHalf.x);
+			const bool overlapY = std::abs(pos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
+			const bool overlapZ = std::abs(pos.z - blockPos.z) < (playerHalf.z + blockHalf.z);
+
+			if (overlapX && overlapY && overlapZ) {
+				return true;
+			}
+		}
+	}
+
+	return false;
 }

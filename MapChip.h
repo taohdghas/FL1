@@ -16,8 +16,15 @@ public:
 	bool Initialize(const std::string& csvPath, float blockSize = 2.0f);
 	void Update();
 
-	// Playerと各BlockのAABB衝突を解決する
+	// Playerと各BlockのAABB衝突を解決する（終点はスキップ）
 	void ResolvePlayerCollision(Player& player) const;
+
+	// プレイヤーが終点に到達したか（AABB重なり）
+	bool HasPlayerReachedGoal(const Player& player) const;
+
+	// マップに終点が存在するか
+	bool HasGoal() const { return hasGoal_; }
+
 	void Draw(const Camera& camera);
 	void Finalize();
 
@@ -41,4 +48,7 @@ private:
 	std::vector<std::vector<std::unique_ptr<Block>>> blocks_;
 
 	float blockSize_ = 2.0f;
+
+	// 終点が存在するか
+	bool hasGoal_ = false;
 };
