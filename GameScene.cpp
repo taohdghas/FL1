@@ -312,7 +312,7 @@ void GameScene::CheckGoal() {
 		LoadStage(currentStageIndex_ + 1);
 	} else {
 		// 最終ステージクリア → エンディング
-		sceneManager_->ChangeScene(SceneType::End);
+		sceneManager_->ChangeScene(SceneType::Game);
 	}
 }
 
