@@ -2,12 +2,14 @@
 
 Fader::Fader() : alpha(0.0f), speed(1.0f), fadingIn(false), fadingOut(false) {}
 
+// 秒数指定してフェードイン
 void Fader::fadeIn(float second) {
 	speed = 1.0f / second;
 	fadingIn = true;
 	fadingOut = false;
 }
 
+// 秒数指定してフェードアウト
 void Fader::fadeOut(float second) {
 	if (second <= 0.0f) {
 		second = 0.01f;
@@ -18,6 +20,7 @@ void Fader::fadeOut(float second) {
 	fadingIn = false;
 }
 
+// 更新
 void Fader::update(float dt) {
 	if (fadingIn) {
 		alpha += speed * dt;

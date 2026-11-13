@@ -17,8 +17,9 @@ float Clear::getDeltaTime() {
 void Clear::Initialize() {
 	prevTime_ = std::chrono::high_resolution_clock::now();
 	clear_ = Sprite::Create(clearTexture_, {0.0f, 0.0f}, {1, 1, 1, 1});
+
+	// フェードインはなし
 	fader.setAlpha(1.0f);
-	//fader.fadeIn(1.0f);
 
 	isPush = false;
 	isPushTitle = false;

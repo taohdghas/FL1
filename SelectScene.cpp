@@ -13,7 +13,7 @@ float SelectScene::getDeltaTime() {
 	return dt.count();
 }
 
-//初期化
+// 初期化
 void SelectScene::Initialize() {
 	prevTime_ = std::chrono::high_resolution_clock::now();
 	sample_ = Sprite::Create(sampleTexture_, {0.0f, 0.0f}, {1, 1, 1, 1});

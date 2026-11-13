@@ -17,6 +17,8 @@ float Fail::getDeltaTime() {
 void Fail::Initialize() {
 	prevTime_ = std::chrono::high_resolution_clock::now();
 	failed_ = Sprite::Create(failedTexture_, {0.0f, 0.0f}, {1, 1, 1, 1});
+
+	// フェードインはなし
 	fader.setAlpha(1.0f);
 
 	isPush = false;

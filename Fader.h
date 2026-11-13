@@ -2,7 +2,7 @@
 
 class Fader {
 public:
-    Fader();
+	Fader();
 
     void fadeIn(float second);
 	void fadeOut(float second);
