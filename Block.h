@@ -6,7 +6,8 @@ using namespace KamataEngine;
 //ブロック種類
 enum class BlockType {
 	Normal,//通常
-	Burnable,//燃える
+	Burnable,//可燃物
+	Mesh,//網目状
 };
 
 class Block {
@@ -29,10 +30,10 @@ public:
 	//ブロックが有効か判定
 	bool IsActive() const{ return isActive_; }
 
-	void SetPosition(const Vector3& position);
-	const Vector3& GetPosition() const;
+	void SetPosition(const Vector3& position) { position_ = position; }
+	const Vector3& GetPosition()const { return position_; }
 	//ブロックの半サイズを返す
-	const Vector3& GetHalfSize() const;
+	const Vector3& GetHalfSize() const { return halfSize_; }
 	//ブロック種類を取得
 	BlockType GetType() const { return type_; }
 
@@ -44,6 +45,7 @@ private:
 	static Model* normalModel_; // 通常ブロック
 	static Model* burnableModel_; // 燃えるブロック
 	static Model* goalModel_;     // ゴールブロック
+	static Model* meshModel_;     // 網目状ブロック
 	WorldTransform worldTransform_{};
 	BlockType type_ = BlockType::Normal;
 	Vector3 position_{};

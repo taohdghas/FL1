@@ -49,8 +49,8 @@ void Player::Update() {
 		position_.x += moveSpeed_;
 	}
 
-	// 接地しているときだけジャンプできる
-	if (isGrounded_ && input->TriggerKey(DIK_SPACE)) {
+	// 地面に接地しているときとプレイヤーが水状態でない場合にジャンプ可能
+	if (isGrounded_ && currentElement_ != ElementType::Water &&input->TriggerKey(DIK_SPACE)) {
 		verticalVelocity_ = jumpPower_;
 		isGrounded_ = false;
 	}

@@ -24,7 +24,7 @@ void GameScene::Initialize() {
 		message_ = "Failed to load map.";
 	}
 
-	 // プレイヤーの初期位置を設定
+	// プレイヤーの初期位置を設定
 	Vector3 spawnPosition;
 
 	if (mapChip_.GetPlayerSpawnPosition(spawnPosition)) {
@@ -65,7 +65,6 @@ void GameScene::Initialize() {
 	elementUI_->AddPanel(ElementType::Gas, "gas_element_panel.png", {800.0f, 660.0f}, {100.0f, 100.0f});
 	elementUI_->AddPanel(ElementType::Stone, "stone_element_panel.png", {1000.0f, 660.0f}, {100.0f, 100.0f});
 }
-
 // 終了
 void GameScene::Finalize() {
 	mapChip_.Finalize();      // マップチップ
@@ -91,13 +90,14 @@ void GameScene::Finalize() {
 		elementSystem_->Clear();
 		elementSystem_.reset();
 	}
+	// 火のギミックの共有モデル解放
+	Fire::FinalizeModel();
 }
-
 // 更新
 void GameScene::Update() {
 	// マップチップの更新
 	mapChip_.Update();
-	//プレイヤーの更新
+	// プレイヤーの更新
 	player_.Update();
 	// プレイヤーとブロックの衝突解決（終点はスキップされる）
 	mapChip_.ResolvePlayerCollision(player_);
@@ -160,6 +160,12 @@ void GameScene::Update() {
 	}
 	// エレメントシステムの状態をプレイヤーに反映
 	player_.SetElement(elementSystem_->GetCurrentElement());
+
+	if (mapChip_.ResolveFireCollision(player_)) {
+		// 火に触れたらステージリトライ
+		LoadStage(currentStageIndex_);
+		return;
+	}
 	// デバッグ表示
 #ifdef _DEBUG
 	elementUI_->Debug(*elementSystem_, playerScreenPosition_);
@@ -212,7 +218,6 @@ void GameScene::Draw() {
 
 	Sprite::PostDraw();
 }
-
 // リセット
 void GameScene::Reset() {
 	// Rキーの長押しでリセット
@@ -244,7 +249,6 @@ void GameScene::Reset() {
 		resetMeterSprite_->SetSize({0.0f, resetMeterSize_.y});
 	}
 }
-
 // ステージ読み込み
 void GameScene::LoadStage(int index) {
 	if (index < 0 || index >= static_cast<int>(stagePaths_.size())) {
@@ -294,7 +298,6 @@ void GameScene::LoadStage(int index) {
 		player_.SetElement(ElementType::None);
 	}
 }
-
 // 終点到達チェック
 void GameScene::CheckGoal() {
 	if (isClearTriggered_) {
@@ -319,168 +322,242 @@ void GameScene::CheckGoal() {
 #pragma region マップエディタ
 void GameScene::DrawMapEditor() {
 #ifdef _DEBUG
-    ImGui::Begin("Map Editor");
 
-    ImGui::Text("CSV File");
-    ImGui::SetNextItemWidth(240.0f);
+	ImGui::Begin("LEVEL EDITOR");
 
-    if (ImGui::InputText("##CSVPath", csvPathBuffer_, sizeof(csvPathBuffer_))) {
-        csvPath_ = csvPathBuffer_;
-    }
+	//ファイル操作
+	ImGui::Text("CSV File");
+	ImGui::SetNextItemWidth(260.0f);
 
-    ImGui::SameLine();
+	if (ImGui::InputText("##CSVPath", csvPathBuffer_, sizeof(csvPathBuffer_))) {
+		csvPath_ = csvPathBuffer_;
+	}
 
-    // CSV保存
-    if (ImGui::Button("Save")) {
-        csvPath_ = csvPathBuffer_;
+	ImGui::SameLine();
 
-        if (mapChip_.SaveCSV(csvPath_)) {
-            message_ = "Saved successfully.";
-        } else {
-            message_ = "Failed to save CSV.";
-        }
-    }
+	// CSV保存
+	if (ImGui::Button("Save")) {
+		csvPath_ = csvPathBuffer_;
 
-    // CSV読み込み
-    if (ImGui::Button("Load")) {
-        csvPath_ = csvPathBuffer_;
+		if (mapChip_.SaveCSV(csvPath_)) {
+			message_ = "Saved successfully.";
+		} else {
+			message_ = "Failed to save CSV.";
+		}
+	}
 
-        if (mapChip_.LoadCSV(csvPath_)) {
+	ImGui::SameLine();
 
-            // プレイヤーの開始位置を取得
-            Vector3 spawnPosition;
+	// CSV読み込み
+	if (ImGui::Button("Load")) {
+		csvPath_ = csvPathBuffer_;
 
-            if (mapChip_.GetPlayerSpawnPosition(spawnPosition)) {
-                // プレイヤーを開始位置に戻す
-                player_.SetPosition(spawnPosition);
+		if (mapChip_.LoadCSV(csvPath_)) {
 
-                // 落下速度をリセット
-                player_.SetVerticalVelocity(0.0f);
+			Vector3 spawnPosition;
 
-                // 接地状態をリセット
-                player_.SetGrounded(false);
-            }
+			if (mapChip_.GetPlayerSpawnPosition(spawnPosition)) {
+				player_.SetPosition(spawnPosition);
+				player_.SetVerticalVelocity(0.0f);
+				player_.SetGrounded(false);
+			}
 
-            message_ = "Loaded successfully.";
-        } else {
-            message_ = "Failed to load CSV.";
-        }
-    }
+			message_ = "Loaded successfully.";
+		} else {
+			message_ = "Failed to load CSV.";
+		}
+	}
 
-    ImGui::Separator();
+	ImGui::SameLine();
+	ImGui::Text("%s", message_.c_str());
 
-    // 編集モード
-    ImGui::Text("Edit Mode");
+	ImGui::Separator();
+	//タイルパレット
+	ImGui::BeginChild("TilePalette", ImVec2(160.0f, 0.0f), true);
 
-    if (ImGui::RadioButton("Place", editMode_ == EditMode::Place)) {
-        editMode_ = EditMode::Place;
-    }
+	ImGui::Text("TILE PALETTE");
+	ImGui::Separator();
 
-    ImGui::SameLine();
+	if (ImGui::Selectable("Erase", selectedCellType_ == 0)) {
+		selectedCellType_ = 0;
+	}
 
-    if (ImGui::RadioButton("Erase", editMode_ == EditMode::Erase)) {
-        editMode_ = EditMode::Erase;
-    }
+	if (ImGui::Selectable("Normal Block", selectedCellType_ == 1)) {
+		selectedCellType_ = 1;
+	}
 
-    ImGui::SameLine();
+	if (ImGui::Selectable("Goal", selectedCellType_ == 2)) {
+		selectedCellType_ = 2;
+	}
 
-    if (ImGui::RadioButton("Goal", editMode_ == EditMode::Goal)) {
-        editMode_ = EditMode::Goal;
-    }
+	if (ImGui::Selectable("Player Spawn", selectedCellType_ == 3)) {
+		selectedCellType_ = 3;
+	}
 
-    // 配置するマスの種類
-    ImGui::Separator();
-    ImGui::Text("Cell Type");
+	if (ImGui::Selectable("Burnable Block", selectedCellType_ == 4)) {
+		selectedCellType_ = 4;
+	}
 
-    if (ImGui::RadioButton("Normal Block (1)", selectedCellType_ == 1)) {
-        selectedCellType_ = 1;
-    }
+	if (ImGui::Selectable("Mesh Block", selectedCellType_ == 5)) {
+		selectedCellType_ = 5;
+	}
 
-    ImGui::SameLine();
+	if (ImGui::Selectable("Fire", selectedCellType_ == 6)) {
+		selectedCellType_ = 6;
+	}
 
-    if (ImGui::RadioButton("Burnable Block (4)", selectedCellType_ == 4)) {
-        selectedCellType_ = 4;
-    }
+	ImGui::Separator();
 
-    ImGui::SameLine();
+	ImGui::TextWrapped("Left Click / Drag : Place");
+	ImGui::TextWrapped("Right Click : Erase");
 
-    if (ImGui::RadioButton("Player Spawn (3)", selectedCellType_ == 3)) {
-        selectedCellType_ = 3;
-    }
+	ImGui::EndChild();
 
-    ImGui::Separator();
+	ImGui::SameLine();
 
-    // マップのマスを表示
-    const int rowCount = mapChip_.GetRowCount();
-    const int columnCount = mapChip_.GetColumnCount();
+	//マップキャンバス
 
-    for (int row = 0; row < rowCount; ++row) {
-        for (int column = 0; column < columnCount; ++column) {
+	ImGui::BeginChild("MapCanvas", ImVec2(0.0f, 0.0f), true, ImGuiWindowFlags_HorizontalScrollbar);
 
-            const int cell = mapChip_.GetCell(row, column);
+	const int rowCount = mapChip_.GetRowCount();
+	const int columnCount = mapChip_.GetColumnCount();
 
-            // マスの表示名
-            const char* label = "[ ]";
+	// マスの大きさ
+	const float cellSize = 32.0f;
 
-            switch (cell) {
-            case 1:
-                label = "[N]";
-                break;
+	if (rowCount > 0 && columnCount > 0) {
 
-            case 2:
-                label = "[G]";
-                break;
+		const float canvasWidth = columnCount * cellSize;
+		const float canvasHeight = rowCount * cellSize;
 
-            case 3:
-                label = "[P]";
-                break;
+		// キャンバスの左上の画面座標
+		ImVec2 canvasPos = ImGui::GetCursorScreenPos();
 
-            case 4:
-                label = "[B]";
-                break;
-            }
+		// マウス操作を受け取る透明なボタン
+		ImGui::InvisibleButton("MapGrid", ImVec2(canvasWidth, canvasHeight));
 
-            ImGui::PushID(row);
-            ImGui::PushID(column);
+		bool isHovered = ImGui::IsItemHovered();
 
-            if (ImGui::Button(label)) {
+		ImVec2 mousePos = ImGui::GetMousePos();
 
-                int newValue = 0;
+		// マウス位置からマス番号を計算
+		int mouseColumn = static_cast<int>((mousePos.x - canvasPos.x) / cellSize);
 
-                // 編集モードに応じて配置する値を決定
-                switch (editMode_) {
+		int mouseRow = static_cast<int>((mousePos.y - canvasPos.y) / cellSize);
 
-                case EditMode::Place:
-                    newValue = selectedCellType_;
-                    break;
+		// マウスがマップ内にあるか
+		bool isInsideMap = mouseColumn >= 0 && mouseColumn < columnCount && mouseRow >= 0 && mouseRow < rowCount;
 
-                case EditMode::Erase:
-                    newValue = 0;
-                    break;
+		// マウスによる配置・消去
 
-                case EditMode::Goal:
-                    newValue = 2;
-                    break;
-                }
+		if (isHovered && isInsideMap) {
 
-                if (mapChip_.SetCell(row, column, newValue)) {
-                    message_ = "Map edited.";
-                }
-            }
+			// 左クリック・ドラッグ：選択中のタイルを配置
+			if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 
-            ImGui::PopID();
-            ImGui::PopID();
+				int currentCell = mapChip_.GetCell(mouseRow, mouseColumn);
 
-            if (column + 1 < columnCount) {
-                ImGui::SameLine();
-            }
-        }
-    }
+				if (currentCell != selectedCellType_) {
+					mapChip_.SetCell(mouseRow, mouseColumn, selectedCellType_);
+				}
+			}
 
-    ImGui::Separator();
-    ImGui::Text("%s", message_.c_str());
+			// 右クリック：消去
+			if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
 
-    ImGui::End();
+				int currentCell = mapChip_.GetCell(mouseRow, mouseColumn);
+
+				if (currentCell != 0) {
+					mapChip_.SetCell(mouseRow, mouseColumn, 0);
+				}
+			}
+		}
+		// マップ描画
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+		for (int row = 0; row < rowCount; ++row) {
+			for (int column = 0; column < columnCount; ++column) {
+
+				int cell = mapChip_.GetCell(row, column);
+
+				ImU32 color = IM_COL32(55, 55, 55, 255);
+
+				const char* label = "";
+
+				switch (cell) {
+
+				case 0:
+					color = IM_COL32(55, 55, 55, 255);
+					break;
+
+				case 1:
+					color = IM_COL32(140, 140, 140, 255);
+					label = "N";
+					break;
+
+				case 2:
+					color = IM_COL32(230, 190, 60, 255);
+					label = "G";
+					break;
+
+				case 3:
+					color = IM_COL32(60, 130, 220, 255);
+					label = "P";
+					break;
+
+				case 4:
+					color = IM_COL32(220, 120, 45, 255);
+					label = "B";
+					break;
+
+				case 5:
+					color = IM_COL32(80, 160, 150, 255);
+					label = "M";
+					break;
+
+				case 6:
+					color = IM_COL32(220, 65, 65, 255);
+					label = "F";
+					break;
+				}
+
+				ImVec2 cellMin(canvasPos.x + column * cellSize, canvasPos.y + row * cellSize);
+
+				ImVec2 cellMax(cellMin.x + cellSize, cellMin.y + cellSize);
+
+				// マスの背景
+				drawList->AddRectFilled(cellMin, cellMax, color);
+
+				// マスの枠線
+				drawList->AddRect(cellMin, cellMax, IM_COL32(30, 30, 30, 255));
+
+				// マスの文字
+				if (label[0] != '\0') {
+
+					ImVec2 textSize = ImGui::CalcTextSize(label);
+
+					ImVec2 textPos(cellMin.x + (cellSize - textSize.x) * 0.5f, cellMin.y + (cellSize - textSize.y) * 0.5f);
+
+					drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), label);
+				}
+			}
+		}
+
+		// マウス位置のハイライト
+		if (isHovered && isInsideMap) {
+
+			ImVec2 highlightMin(canvasPos.x + mouseColumn * cellSize, canvasPos.y + mouseRow * cellSize);
+
+			ImVec2 highlightMax(highlightMin.x + cellSize, highlightMin.y + cellSize);
+
+			drawList->AddRect(highlightMin, highlightMax, IM_COL32(255, 255, 255, 255), 0.0f, 0, 2.0f);
+		}
+	}
+
+	ImGui::EndChild();
+
+	ImGui::End();
+
 #endif
 }
 #pragma endregion
@@ -507,7 +584,6 @@ void GameScene::UpdateCamera() {
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
 }
-
 #pragma region ImGui更新
 void GameScene::UpdateImGui() {
 #ifdef _DEBUG

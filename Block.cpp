@@ -7,24 +7,28 @@ using namespace KamataEngine;
 Model* Block::normalModel_ = nullptr;
 Model* Block::burnableModel_ = nullptr;
 Model* Block::goalModel_ = nullptr;
+Model* Block::meshModel_ = nullptr;
 
 Block::~Block() {}
-
+//初期化
 void Block::Initialize(const Vector3& position, float size, bool isGoal, BlockType type) {
 	position_ = position;
 	type_ = type;
 	isActive_ = true;
   isGoal_ = isGoal;
-	 // モデルが読み込まれていなければ読み込む
     // 通常
     if (normalModel_ == nullptr) {
         normalModel_ = Model::CreateFromOBJ("cube");
     }
-
     // 燃える
     if (burnableModel_ == nullptr) {
         burnableModel_ = Model::CreateFromOBJ("burn");
     }
+    // 網目状
+	if (meshModel_ == nullptr) {
+        meshModel_ = Model::CreateFromOBJ("mesh");
+	}
+
     // ゴール
     if (isGoal_) {
         goalModel_ = Model::CreateFromOBJ("cube");
@@ -46,12 +50,13 @@ void Block::Initialize(const Vector3& position, float size, bool isGoal, BlockTy
 void Block::FinalizeModels() { 
 	delete normalModel_;
 	delete burnableModel_;
+	delete meshModel_;
 	delete goalModel_;
 	normalModel_ = nullptr;
 	burnableModel_ = nullptr;
+	meshModel_ = nullptr;
 	goalModel_ = nullptr;
 }
-
 // 更新
 void Block::Update() {
 	if (!isInitialized_ || !isActive_) {
@@ -71,11 +76,14 @@ void Block::Draw(const Camera& camera) {
 	Model* drawModel = nullptr;
 	
 	switch (type_) {
-	case BlockType::Normal:
+	case BlockType::Normal://通常
 		drawModel = normalModel_;
 		break;
-	case BlockType::Burnable:
+	case BlockType::Burnable://可燃物
 		drawModel = burnableModel_;
+		break;
+	case BlockType::Mesh: // 網目状
+		drawModel = meshModel_;
 		break;
 	}
 	if (drawModel != nullptr) {
@@ -90,7 +98,3 @@ void Block::Burn() {
 	}
 	isActive_ = false;
 }
-
-void Block::SetPosition(const Vector3& position) { position_ = position; }
-const Vector3& Block::GetPosition() const { return position_; }
-const Vector3& Block::GetHalfSize() const { return halfSize_; }
