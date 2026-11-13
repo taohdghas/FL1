@@ -10,6 +10,7 @@ using namespace KamataEngine;
 #include "MapChip.h"
 #include "Player.h"
 #include "UI.h"
+#include "Fire.h"
 
 #include "Scene.h"
 

@@ -182,6 +182,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClCompile Include="ElementSystem.cpp" />
     <ClCompile Include="ElementUI.cpp" />
     <ClCompile Include="EndScene.cpp" />
+    <ClCompile Include="Fire.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MapChip.cpp" />
@@ -198,6 +199,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClInclude Include="ElementType.h" />
     <ClInclude Include="ElementUI.h" />
     <ClInclude Include="EndScene.h" />
+    <ClInclude Include="Fire.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="MapChip.h" />
     <ClInclude Include="MyMath.h" />
