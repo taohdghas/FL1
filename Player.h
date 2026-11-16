@@ -39,7 +39,7 @@ private:
 	Vector3 previousPosition_{};
 	Vector3 halfSize_{0.5f, 0.5f, 0.5f};
 	float verticalVelocity_ = 0.0f;
-	float moveSpeed_ = 0.12f;
+	float moveSpeed_ = 0.1f;
 	float jumpPower_ = 0.28f;
 	float gravity_ = 0.012f;
 	bool isGrounded_ = false;
