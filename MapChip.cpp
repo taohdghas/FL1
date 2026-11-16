@@ -374,7 +374,7 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 				continue;
 			}
 			// 水エレメントなら網目ブロックを通過
-			if (playerElement == ElementType::Water &&
+			if ((playerElement == ElementType::Water || playerElement == ElementType::Gas) &&
 				block->GetType() == BlockType::Mesh) {
 				continue;
 			}
