@@ -11,7 +11,7 @@ Model* Block::meshModel_ = nullptr;
 
 Block::~Block() {}
 //初期化
-void Block::Initialize(const Vector3& position, float size, bool isGoal, BlockType type) {
+void Block::Initialize(const Vector3& position, bool isGoal, BlockType type) {
 	position_ = position;
 	type_ = type;
 	isActive_ = true;
@@ -42,7 +42,7 @@ void Block::Initialize(const Vector3& position, float size, bool isGoal, BlockTy
 	worldTransform_.TransferMatrix();
 
 	// 衝突判定のAABBはグリッド1マス分に合わせる
-	halfSize_ = {0.5f * size, 0.5f * size, 0.5f * size};
+	halfSize_ = {1.0f * worldTransform_.scale_.x, 1.0f * worldTransform_.scale_.y, 1.0f * worldTransform_.scale_.z};
 
 	isInitialized_ = true;
 }

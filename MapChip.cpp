@@ -260,18 +260,82 @@ int MapChip::GetColumnCount() {
 // Playerと各BlockのAABB衝突を解決する
 void MapChip::ResolvePlayerCollision(Player& player) {
 
-	// プレイヤーの現在位置と前フレーム位置を取得
+	// プレイヤーの現在位置と前フレーム位置
 	Vector3 pos = player.GetPosition();
 	const Vector3 prevPos = player.GetPreviousPosition();
 	const Vector3 playerHalf = player.GetHalfSize();
 	const ElementType playerElement = player.GetElement();
-
 	// 接地フラグ
 	bool grounded = false;
-
-	// 垂直速度の上書き用
+	// 垂直速度
 	float newVerticalVelocity = player.GetVerticalVelocity();
+	// 前フレームからの移動量
+	const float moveY = pos.y - prevPos.y;
+	// 上下方向に移動していて、横方向には移動していない場合だけ
+	// 1マス分の縦の隙間に合わせてX座標を補正する
+	const float gapMoveX = pos.x - prevPos.x;
+	const float gapMoveY = pos.y - prevPos.y;
+	const float epsilon = 0.0001f;
 
+	if (std::abs(gapMoveX) <= epsilon && std::abs(gapMoveY) > epsilon) {
+
+		// プレイヤーに最も近いマスの中心X座標
+		const int candidateColumn = static_cast<int>(std::round(pos.x / blockSize_));
+
+		// 左右にブロックが存在する列だけを対象にする
+		if (candidateColumn > 0 && candidateColumn + 1 < static_cast<int>(blocks_[0].size())) {
+
+			const float targetX = static_cast<float>(candidateColumn) * blockSize_;
+
+			// マスの中心から半マス以内にいる場合だけ補正候補にする
+			if (std::abs(pos.x - targetX) <= blockSize_ * 0.5f) {
+
+				// 前フレームから現在までのプレイヤーの上下範囲
+				const float playerTop = (pos.y > prevPos.y ? pos.y : prevPos.y) + playerHalf.y;
+
+				const float playerBottom = (pos.y < prevPos.y ? pos.y : prevPos.y) - playerHalf.y;
+
+				for (size_t row = 0; row < blocks_.size(); ++row) {
+
+					// 隙間の中央にブロックがないことを確認
+					Block* centerBlock = blocks_[row][candidateColumn].get();
+
+					if (centerBlock != nullptr && centerBlock->IsActive() && !centerBlock->IsGoal()) {
+						continue;
+					}
+
+					// 左右のブロックを取得
+					Block* leftBlock = blocks_[row][candidateColumn - 1].get();
+					Block* rightBlock = blocks_[row][candidateColumn + 1].get();
+
+					// 左右両方に有効なブロックが必要
+					const bool hasLeft = leftBlock != nullptr && leftBlock->IsActive() && !leftBlock->IsGoal();
+					const bool hasRight = rightBlock != nullptr && rightBlock->IsActive() && !rightBlock->IsGoal();
+
+					if (!hasLeft || !hasRight) {
+						continue;
+					}
+
+					// このマスのY座標
+					const float cellY = static_cast<float>(blocks_.size() - 1 - row) * blockSize_;
+					const float cellHalf = blockSize_ * 0.5f;
+
+					// プレイヤーが上下方向からこのマスに接近しているか
+					const bool overlapsVertically = playerTop >= cellY - cellHalf && playerBottom <= cellY + cellHalf;
+
+					if (overlapsVertically) {
+						// 補正の強さ（小さいほどゆっくり寄る）
+						const float correctionStrength = 0.1f;
+
+						// 現在位置から隙間の中央へ少しだけ近づける
+						pos.x += (targetX - pos.x) * correctionStrength;
+						break;
+					}
+				}
+			}
+		}
+	}
+	// 各ブロックとの衝突判定
 	for (size_t row = 0; row < blocks_.size(); ++row) {
 		for (size_t column = 0; column < blocks_[row].size(); ++column) {
 
@@ -289,76 +353,146 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 			const Vector3 blockPos = block->GetPosition();
 			const Vector3 blockHalf = block->GetHalfSize();
 
-			// AABB同士の重なりチェック
-			const bool overlapX = std::abs(pos.x - blockPos.x) < (playerHalf.x + blockHalf.x);
-
-			const bool overlapY = std::abs(pos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
-
-			const bool overlapZ = std::abs(pos.z - blockPos.z) < (playerHalf.z + blockHalf.z);
+			// 現在位置での重なり判定
+			const bool overlapX =
+				std::abs(pos.x - blockPos.x) <
+				(playerHalf.x + blockHalf.x);
+			const bool overlapY =
+				std::abs(pos.y - blockPos.y) <
+				(playerHalf.y + blockHalf.y);
+			const bool overlapZ =
+				std::abs(pos.z - blockPos.z) <
+				(playerHalf.z + blockHalf.z);
 
 			if (!(overlapX && overlapY && overlapZ)) {
 				continue;
 			}
-
-			// 火エレメント接続中に燃えるブロックに触れた時
-			if (playerElement == ElementType::Fire && block->IsBurnable()) {
+			// 火エレメントで燃えるブロックに触れた場合
+			if (playerElement == ElementType::Fire &&
+				block->IsBurnable()) {
 				block->Burn();
 				continue;
 			}
-
-			// 水エレメント接続中に網目ブロックを通過
-			if (playerElement == ElementType::Water && block->GetType() == BlockType::Mesh) {
+			// 水エレメントなら網目ブロックを通過
+			if (playerElement == ElementType::Water &&
+				block->GetType() == BlockType::Mesh) {
 				continue;
 			}
+			// 縦方向の隙間を通過中か確認
+			const float moveX = pos.x - prevPos.x;
+
+			if (std::abs(moveY) > epsilon && std::abs(moveX) <= epsilon) {
+
+				const int candidateColumn = static_cast<int>(std::round(pos.x / blockSize_));
+
+				if (candidateColumn > 0 && candidateColumn + 1 < static_cast<int>(blocks_[row].size())) {
+
+					const float targetX = candidateColumn * blockSize_;
+
+					// 隙間の中央付近にいる場合
+					if (std::abs(pos.x - targetX) < blockSize_ * 0.5f) {
+
+						Block* centerBlock = blocks_[row][candidateColumn].get();
+						Block* leftBlock = blocks_[row][candidateColumn - 1].get();
+						Block* rightBlock = blocks_[row][candidateColumn + 1].get();
+
+						const bool centerIsEmpty = centerBlock == nullptr || !centerBlock->IsActive() || centerBlock->IsGoal();
+
+						const bool leftIsSolid = leftBlock != nullptr && leftBlock->IsActive() && !leftBlock->IsGoal();
+
+						const bool rightIsSolid = rightBlock != nullptr && rightBlock->IsActive() && !rightBlock->IsGoal();
+
+						const bool isSideBlock = static_cast<int>(column) == candidateColumn - 1 || static_cast<int>(column) == candidateColumn + 1;
+
+						// 左右のブロックに挟まれた空きマスならその左右のブロックとの衝突を無視する
+						if (centerIsEmpty && leftIsSolid && rightIsSolid && isSideBlock) {
+							continue;
+						}
+					}
+				}
+			}
+
+			const float blockTop =
+				blockPos.y + blockHalf.y;
+			const float blockBottom =
+				blockPos.y - blockHalf.y;
 
 			// 前フレームでY方向に重なっていたか
-			const bool prevOverlapY = std::abs(prevPos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
+			const bool prevOverlapY =
+				std::abs(prevPos.y - blockPos.y) <
+				(playerHalf.y + blockHalf.y);
+			// Y方向の衝突判定
+			// 下から上昇してブロックの下面に衝突
+			const bool hitCeiling =
+				moveY > 0.0f &&
+				(prevPos.y + playerHalf.y <= blockBottom + epsilon) &&
+				(pos.y + playerHalf.y > blockBottom);
 
-			// Y方向の重なりが新たに発生した場合
-			if (!prevOverlapY) {
-				if (pos.y > blockPos.y) {
-					// 上に乗っている
-					pos.y = blockPos.y + blockHalf.y + playerHalf.y;
+			// 上から落下してブロックの上面に着地
+			const bool hitFloor =
+				moveY < 0.0f &&
+				(prevPos.y - playerHalf.y >= blockTop - epsilon) &&
+				(pos.y - playerHalf.y < blockTop);
 
-					if (newVerticalVelocity <= 0.0f) {
-						newVerticalVelocity = 0.0f;
-						grounded = true;
-					}
-				} else {
-					// 下から頭をぶつけた
-					pos.y = blockPos.y - blockHalf.y - playerHalf.y;
+			if (hitCeiling) {
 
-					if (newVerticalVelocity > 0.0f) {
-						newVerticalVelocity = 0.0f;
-					}
-				}
-
+				pos.y = blockBottom - playerHalf.y;
+				newVerticalVelocity = 0.0f;
 				continue;
 			}
 
-			const float penX = (playerHalf.x + blockHalf.x) - std::abs(pos.x - blockPos.x);
+			if (hitFloor) {
 
-			const float penZ = (playerHalf.z + blockHalf.z) - std::abs(pos.z - blockPos.z);
+				pos.y = blockTop + playerHalf.y;
+				newVerticalVelocity = 0.0f;
+				grounded = true;
 
-			if (penX < penZ) {
-				// X軸で押し戻す
-				if (pos.x > blockPos.x) {
-					pos.x = blockPos.x + blockHalf.x + playerHalf.x;
+				continue;
+			}
+			// X方向・Z方向の衝突判定
+			if (prevOverlapY) {
+
+				const float penX =
+					(playerHalf.x + blockHalf.x) -
+					std::abs(pos.x - blockPos.x);
+
+				const float penZ =
+					(playerHalf.z + blockHalf.z) -
+					std::abs(pos.z - blockPos.z);
+
+				if (penX < penZ) {
+					// X軸で押し戻す
+					if (pos.x > blockPos.x) {
+						pos.x =
+							blockPos.x +
+							blockHalf.x +
+							playerHalf.x;
+					} else {
+						pos.x =
+							blockPos.x -
+							blockHalf.x -
+							playerHalf.x;
+					}
+
 				} else {
-					pos.x = blockPos.x - blockHalf.x - playerHalf.x;
-				}
-			} else {
-				// Z軸で押し戻す
-				if (pos.z > blockPos.z) {
-					pos.z = blockPos.z + blockHalf.z + playerHalf.z;
-				} else {
-					pos.z = blockPos.z - blockHalf.z - playerHalf.z;
+					// Z軸で押し戻す
+					if (pos.z > blockPos.z) {
+						pos.z =
+							blockPos.z +
+							blockHalf.z +
+							playerHalf.z;
+					} else {
+						pos.z =
+							blockPos.z -
+							blockHalf.z -
+							playerHalf.z;
+					}
 				}
 			}
 		}
 	}
 
-	// 解決後の位置をプレイヤーへ反映
+	// 解決後の位置を反映
 	player.SetPosition(pos);
 	player.SetVerticalVelocity(newVerticalVelocity);
 	player.SetGrounded(grounded);
@@ -503,7 +637,7 @@ void MapChip::UpdateBlock(int row, int column) {
 
 	blocks_[row][column] = std::make_unique<Block>();
 
-	blocks_[row][column]->Initialize(position, blockSize_, isGoal, type);
+	blocks_[row][column]->Initialize(position, isGoal, type);
 }
 
 // プレイヤー開始位置を更新
