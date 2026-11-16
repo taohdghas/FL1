@@ -42,6 +42,7 @@ private:
 	float moveSpeed_ = 0.1f;
 	float jumpPower_ = 0.28f;
 	float gravity_ = 0.012f;
+	float gasRiseSpeed_ = 0.06f;//気体状態の上昇速度
 	bool isGrounded_ = false;
 	bool isInitialized_ = false;
 };

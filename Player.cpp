@@ -50,13 +50,18 @@ void Player::Update() {
 	}
 
 	// 地面に接地しているときとプレイヤーが水状態でない場合にジャンプ可能
-	if (isGrounded_ && currentElement_ != ElementType::Water &&input->TriggerKey(DIK_SPACE)) {
+	if (isGrounded_ && currentElement_ != ElementType::Water && currentElement_ != ElementType::Gas && input->TriggerKey(DIK_SPACE)) {
 		verticalVelocity_ = jumpPower_;
 		isGrounded_ = false;
 	}
 
-	// 毎フレーム重力を加える。着地判定はMapChip側で行う
-	verticalVelocity_ -= gravity_;
+	//気体状態なら上昇それ以外なら重力
+	if (currentElement_ == ElementType::Gas) {
+		verticalVelocity_ = gasRiseSpeed_;
+	} else {
+		verticalVelocity_ -= gravity_;
+	}
+	
 	position_.y += verticalVelocity_;
 
 	worldTransform_.translation_ = position_;
