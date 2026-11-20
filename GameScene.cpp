@@ -6,7 +6,7 @@
 
 void GameScene::Initialize() {
 	// カメラの初期化
-	camera_.translation_ = {20.0f, 10.0f, -30.0f};
+	camera_.translation_ = {20.4f, 10.0f, -30.0f};
 	camera_.Initialize();
 
 	// ステージ管理初期化
@@ -106,7 +106,6 @@ void GameScene::Update() {
 	if (!ui_->IsPauseMenuActive()) {
 		CheckGoal();
 	}
-
 	// マップエディタ
 	DrawMapEditor();
 	// UI更新
@@ -136,7 +135,6 @@ void GameScene::Update() {
 	// ImGui更新
 	UpdateImGui();
 #endif
-
 	// ポーズメニューが表示されているならスキップ
 	if (ui_->IsPauseMenuActive()) {
 		return;
@@ -160,7 +158,7 @@ void GameScene::Update() {
 	}
 	// エレメントシステムの状態をプレイヤーに反映
 	player_.SetElement(elementSystem_->GetCurrentElement());
-
+	// 火のギミックとの接触判定
 	if (mapChip_.ResolveFireCollision(player_)) {
 		// 火に触れたらステージリトライ
 		LoadStage(currentStageIndex_);
@@ -171,7 +169,7 @@ void GameScene::Update() {
 	elementUI_->Debug(*elementSystem_, playerScreenPosition_);
 #endif
 }
-
+//描画
 void GameScene::Draw() {
 	Model::PreDraw();
 
@@ -231,7 +229,6 @@ void GameScene::Reset() {
 		}
 		// 進行率を整数に変換
 		resetPercent_ = static_cast<int>(rate * 100.0f);
-
 		// ゲージを左から右へ伸ばす
 		resetMeterSprite_->SetSize({resetMeterSize_.x * rate, resetMeterSize_.y});
 		// 必要時間まで長押ししたらリセット
@@ -264,7 +261,6 @@ void GameScene::LoadStage(int index) {
 	} else {
 		message_ = "Failed to load stage " + std::to_string(index + 1);
 	}
-
 	// CSVからプレイヤーの初期位置を取得
 	Vector3 spawnPosition;
 
@@ -274,11 +270,9 @@ void GameScene::LoadStage(int index) {
 		// スポーン位置が設定されていない場合
 		player_.SetPosition({0.0f, 5.0f, 0.0f});
 	}
-
 	// プレイヤーの物理状態をリセット
 	player_.SetVerticalVelocity(0.0f);
 	player_.SetGrounded(false);
-
 	// クリア判定・リセット状態をリセット
 	isClearTriggered_ = false;
 	isResetRequested_ = false;
@@ -288,7 +282,6 @@ void GameScene::LoadStage(int index) {
 	if (resetMeterSprite_) {
 		resetMeterSprite_->SetSize({0.0f, resetMeterSize_.y});
 	}
-
 	// エレメント状態もリセット
 	if (elementSystem_) {
 		elementSystem_->Clear();
@@ -318,7 +311,6 @@ void GameScene::CheckGoal() {
 		sceneManager_->ChangeScene(SceneType::Game);
 	}
 }
-
 #pragma region マップエディタ
 void GameScene::DrawMapEditor() {
 #ifdef _DEBUG
@@ -561,7 +553,6 @@ void GameScene::DrawMapEditor() {
 #endif
 }
 #pragma endregion
-
 // カメラ移動(デバック用)
 void GameScene::UpdateCamera() {
 	// マウス中ボタンを押しながらドラッグするとカメラを移動
@@ -573,13 +564,11 @@ void GameScene::UpdateCamera() {
 		camera_.translation_.x += static_cast<float>(mouseMove.lX) * cameraMoveSpeed;
 		camera_.translation_.y -= static_cast<float>(mouseMove.lY) * cameraMoveSpeed;
 	}
-
 	// マウスホイールでカメラのZ座標を移動
 	const int32_t wheel = Input::GetInstance()->GetWheel();
+	// ホイールの回転量に応じてカメラのZ座標を移動
 	const float zoomSpeed = 0.01f;
-
 	camera_.translation_.z += static_cast<float>(wheel) * zoomSpeed;
-
 	// カメラ行列を更新
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
@@ -678,7 +667,6 @@ void GameScene::UpdateImGui() {
 #endif
 }
 #pragma endregion
-
 // プレイヤーのワールド座標をスクリーンへ変換
 Vector2 GameScene::GetPlayerScreenPosition() {
 	// ゲーム画面のサイズ
@@ -692,7 +680,6 @@ Vector2 GameScene::GetPlayerScreenPosition() {
 	float clipX = playerPosition.x * viewProjection.m[0][0] + playerPosition.y * viewProjection.m[1][0] + playerPosition.z * viewProjection.m[2][0] + viewProjection.m[3][0];
 	float clipY = playerPosition.x * viewProjection.m[0][1] + playerPosition.y * viewProjection.m[1][1] + playerPosition.z * viewProjection.m[2][1] + viewProjection.m[3][1];
 	float clipW = playerPosition.x * viewProjection.m[0][3] + playerPosition.y * viewProjection.m[1][3] + playerPosition.z * viewProjection.m[2][3] + viewProjection.m[3][3];
-
 	// カメラの後ろにある場合
 	if (clipW <= 0.0001f) {
 		return {-10000.0f, -10000.0f};
@@ -700,10 +687,8 @@ Vector2 GameScene::GetPlayerScreenPosition() {
 	// NDC座標に変換
 	float ndcX = clipX / clipW;
 	float ndcY = clipY / clipW;
-
 	// スクリーン座標に変換
 	Vector2 screenPosition;
-
 	screenPosition.x = (ndcX + 1.0f) * 0.5f * screenWidth;
 	screenPosition.y = (1.0f - ndcY) * 0.5f * screenHeight;
 

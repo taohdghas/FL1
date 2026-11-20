@@ -36,7 +36,7 @@ public:
 	int GetCell(int row, int column) ;
 	// 行数を取得
 	int GetRowCount() { return static_cast<int>(mapData_.size());}
-	//	
+	// 列数を取得
 	int GetColumnCount() ;
 	// プレイヤーのスポーン位置を取得
 	bool GetPlayerSpawnPosition(Vector3& position);

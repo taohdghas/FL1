@@ -123,7 +123,6 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 
 	// CSV読み込み成功。マップデータを更新
 	mapData_ = std::move(newMapData);
-
 	// CSV読み込み時はマップ全体を再構築
 	blocks_.clear();
 	blocks_.resize(mapData_.size());
@@ -145,7 +144,6 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 			UpdateBlock(static_cast<int>(row), static_cast<int>(column));
 		}
 	}
-
 	// プレイヤー開始位置を更新
 	UpdatePlayerSpawnPosition();
 
@@ -158,7 +156,7 @@ bool MapChip::SaveCSV(const std::string& csvPath) {
 	if (!file.is_open()) {
 		return false;
 	}
-
+	// CSVの内容をファイルに書き込む
 	for (size_t row = 0; row < mapData_.size(); ++row) {
 		for (size_t column = 0; column < mapData_[row].size(); ++column) {
 			file << mapData_[row][column];
@@ -175,21 +173,18 @@ bool MapChip::SaveCSV(const std::string& csvPath) {
 }
 // マスの値を変更
 bool MapChip::SetCell(int row, int column, int value) {
-
 	// 範囲チェック
 	if (row < 0 || row >= static_cast<int>(mapData_.size())) {
 		return false;
 	}
-
+	// 範囲チェック
 	if (column < 0 || column >= static_cast<int>(mapData_[row].size())) {
 		return false;
 	}
-
 	// 値の範囲チェック
 	if (value < 0 || value > 6) {
 		return false;
 	}
-
 	// プレイヤー開始位置は1つだけにする
 	if (value == 3) {
 		for (size_t r = 0; r < mapData_.size(); ++r) {
@@ -395,23 +390,21 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 						Block* centerBlock = blocks_[row][candidateColumn].get();
 						Block* leftBlock = blocks_[row][candidateColumn - 1].get();
 						Block* rightBlock = blocks_[row][candidateColumn + 1].get();
-
+						// 中央のブロックが空きマスか、またはゴールブロックなら左右のブロックとの衝突を無視する
 						const bool centerIsEmpty = centerBlock == nullptr || !centerBlock->IsActive() || centerBlock->IsGoal();
-
+						// 左右のブロックが有効か
 						const bool leftIsSolid = leftBlock != nullptr && leftBlock->IsActive() && !leftBlock->IsGoal();
-
 						const bool rightIsSolid = rightBlock != nullptr && rightBlock->IsActive() && !rightBlock->IsGoal();
-
+						// 左右のブロックのどちらかが有効で、中央が空きマスなら左右のブロックとの衝突を無視する
 						const bool isSideBlock = static_cast<int>(column) == candidateColumn - 1 || static_cast<int>(column) == candidateColumn + 1;
-
-						// 左右のブロックに挟まれた空きマスならその左右のブロックとの衝突を無視する
+                        // 左右のブロックに挟まれた空きマスならその左右のブロックとの衝突を無視する
 						if (centerIsEmpty && leftIsSolid && rightIsSolid && isSideBlock) {
 							continue;
 						}
 					}
 				}
 			}
-
+			// 衝突判定のAABBの上下座標
 			const float blockTop =
 				blockPos.y + blockHalf.y;
 			const float blockBottom =
@@ -422,7 +415,6 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 				std::abs(prevPos.y - blockPos.y) <
 				(playerHalf.y + blockHalf.y);
 			// Y方向の衝突判定
-			// 下から上昇してブロックの下面に衝突
 			const bool hitCeiling =
 				moveY > 0.0f &&
 				(prevPos.y + playerHalf.y <= blockBottom + epsilon) &&
@@ -433,14 +425,14 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 				moveY < 0.0f &&
 				(prevPos.y - playerHalf.y >= blockTop - epsilon) &&
 				(pos.y - playerHalf.y < blockTop);
-
+			// Y方向の衝突があれば優先して処理する
 			if (hitCeiling) {
 
 				pos.y = blockBottom - playerHalf.y;
 				newVerticalVelocity = 0.0f;
 				continue;
 			}
-
+			// 下から上に突き抜ける場合はX方向・Z方向の衝突判定を行う
 			if (hitFloor) {
 
 				pos.y = blockTop + playerHalf.y;
@@ -524,11 +516,9 @@ bool MapChip::HasPlayerReachedGoal(const Player& player) const {
 
 			const Vector3 blockPos = block->GetPosition();
 			const Vector3 blockHalf = block->GetHalfSize();
-
+			// AABBによる重なり判定
 			const bool overlapX = std::abs(pos.x - blockPos.x) < (playerHalf.x + blockHalf.x);
-
 			const bool overlapY = std::abs(pos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
-
 			const bool overlapZ = std::abs(pos.z - blockPos.z) < (playerHalf.z + blockHalf.z);
 
 			if (overlapX && overlapY && overlapZ) {
@@ -557,19 +547,15 @@ bool MapChip::ResolveFireCollision(Player& player) {
 
 			const Vector3& firePos = fire->GetPosition();
 			const Vector3& fireHalf = fire->GetHalfSize();
-
 			// AABBによる接触判定
 			bool overlapX = std::abs(playerPos.x - firePos.x) < (playerHalf.x + fireHalf.x);
-
 			bool overlapY = std::abs(playerPos.y - firePos.y) < (playerHalf.y + fireHalf.y);
-
 			bool overlapZ = std::abs(playerPos.z - firePos.z) < (playerHalf.z + fireHalf.z);
 
 			// 接触していなければ次の火を調べる
 			if (!overlapX || !overlapY || !overlapZ) {
 				continue;
 			}
-
 			// 水なら火を消す
 			if (playerElement == ElementType::Water) {
 				fire->Extinguish();
@@ -598,8 +584,7 @@ void MapChip::UpdateBlock(int row, int column) {
     Vector3 position{
 	static_cast<float>(column) * blockSize_,
 	static_cast<float>(static_cast<int>(mapData_.size()) - 1 - row) * blockSize_, 0.0f};
-
-
+	// 火のギミックを生成
 	if (value == 6) {
 		fires_[row][column] = std::make_unique<Fire>();
 		fires_[row][column]->Initialize(position,blockSize_);
@@ -634,12 +619,9 @@ void MapChip::UpdateBlock(int row, int column) {
 
 	// 種類が違う場合は作り直す
 	blocks_[row][column].reset();
-
 	blocks_[row][column] = std::make_unique<Block>();
-
 	blocks_[row][column]->Initialize(position, isGoal, type);
 }
-
 // プレイヤー開始位置を更新
 void MapChip::UpdatePlayerSpawnPosition() {
 	hasPlayerSpawnPosition_ = false;

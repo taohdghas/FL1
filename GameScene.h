@@ -11,7 +11,6 @@ using namespace KamataEngine;
 #include "Player.h"
 #include "UI.h"
 #include "Fire.h"
-
 #include "Scene.h"
 
 class GameScene : public Scene {
@@ -20,7 +19,6 @@ public:
 	void Finalize() override;
 	void Update() override;
 	void Draw() override;
-
 private:
 	// リセット
 	void Reset();
@@ -43,7 +41,6 @@ private:
 	// UI
 	std::unique_ptr<UI> ui_;
 	Player player_;
-
 	// ----- ステージ管理 -----
 	std::vector<std::string> stagePaths_ = {
 	    "Resources/mapdata/stage1.csv",
