@@ -8,22 +8,18 @@ void GameScene::Initialize() {
 	// カメラの初期化
 	camera_.translation_ = {20.4f, 10.0f, -30.0f};
 	camera_.Initialize();
-
 	// ステージ管理初期化
 	currentStageIndex_ = 0;
 	isClearTriggered_ = false;
 	csvPath_ = stagePaths_[0];
-
 	// CSVパスを入力欄に設定
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
-
 	// マップを読み込む
 	if (mapChip_.Initialize(csvPath_, 2.0f)) {
 		message_ = "Map loaded.";
 	} else {
 		message_ = "Failed to load map.";
 	}
-
 	// プレイヤーの初期位置を設定
 	Vector3 spawnPosition;
 
@@ -82,7 +78,6 @@ void GameScene::Finalize() {
 		}
 	}
 	delete resetPercentSymbolSprite_; //%スプライト
-
 	// エレメントUI
 	if (elementUI_) {
 		elementUI_->Finalize();
@@ -197,7 +192,6 @@ void GameScene::Draw() {
 		float totalWidth = digitCount * resetPercentDigitSize_.x + resetPercentSymbolSize_.x + digitCount * resetPercentSpacing_;
 
 		float startX = resetPercentPosition_.x - totalWidth / 2.0f;
-
 		// 各桁の数字を描画
 		for (int i = 0; i < digitCount; ++i) {
 			int number = percentText[i] - '0';
@@ -305,7 +299,6 @@ void GameScene::CheckGoal() {
 	}
 
 	isClearTriggered_ = true;
-
 	// 次のステージが存在するか？
 	if (currentStageIndex_ + 1 < static_cast<int>(stagePaths_.size())) {
 		LoadStage(currentStageIndex_ + 1);
