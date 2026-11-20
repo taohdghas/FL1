@@ -58,7 +58,7 @@ void SelectScene::Update() {
 		}
 
 		if (isPushGame) {
-			nextScene_ = SceneType::Game;
+			nextScene_ = SceneType::Clear;
 		}
 	}
 }
