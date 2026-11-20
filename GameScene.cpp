@@ -6,7 +6,7 @@
 
 void GameScene::Initialize() {
 	// カメラの初期化
-	camera_.translation_ = {20.4f, 10.0f, -30.0f};
+	camera_.translation_ = {20.0f, 11.1f, -30.0f};
 	camera_.Initialize();
 	// ステージ管理初期化
 	currentStageIndex_ = 0;
@@ -127,7 +127,7 @@ void GameScene::Update() {
 	// UIデバック
 	ui_->Debug();
 	// カメラ移動(デバック用)
-	UpdateCamera();
+	//UpdateCamera();
 	// ImGui更新
 	UpdateImGui();
 #endif
@@ -151,6 +151,10 @@ void GameScene::Update() {
 	// 接続に成功したら切り替える
 	if (connectedElement != ElementType::None) {
 		elementSystem_->Connect(connectedElement, fireDuration_);
+	}
+	//右クリックしたらエレメント解除
+	if (elementUI_->IsClearRequested()) {
+		elementSystem_->Clear();
 	}
 	// エレメントシステムの状態をプレイヤーに反映
 	player_.SetElement(elementSystem_->GetCurrentElement());

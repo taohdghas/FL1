@@ -34,10 +34,8 @@ void ElementUI::Draw() {
 
 	for (int i = 0; i < static_cast<int>(panels_.size()); ++i) {
 		ElementPanel& panel = panels_[i];
-
 		// 通常のパネル
 		panel.panelSprite->Draw();
-
 		// ドラッグ中のパネル
 		if (isDragging_ && draggingPanelIndex_ == i) {
 			panel.dragSprite->Draw();
@@ -129,8 +127,9 @@ ElementType ElementUI::Update(const Vector2& playerScreenPosition) {
 		return ElementType::None;
 	}
 
-	const Vector2 mousePosition = Input::GetInstance()->GetMousePosition();
+	isClearRequested_ = Input::GetInstance()->IsTriggerMouse(1);
 
+	const Vector2 mousePosition = Input::GetInstance()->GetMousePosition();
 	// ドラッグ開始
 	if (!isDragging_ && Input::GetInstance()->IsTriggerMouse(0)) {
 
@@ -153,29 +152,23 @@ ElementType ElementUI::Update(const Vector2& playerScreenPosition) {
 	}
 
 	ElementPanel& panel = panels_[draggingPanelIndex_];
-
 	// ドラッグ中の画像をマウスに追従
 	panel.dragSprite->SetPosition(mousePosition);
-
 	// 接続範囲の確認
 	isPlayerHovered_ = IsInside(mousePosition, playerScreenPosition, playerDropHalfSize_);
-
 	// マウスを押している間は継続
 	if (Input::GetInstance()->IsPressMouse(0)) {
 		return ElementType::None;
 	}
-
 	// マウスを離したとき
 	ElementType result = ElementType::None;
 
 	if (isPlayerHovered_) {
 		result = panel.type;
 	}
-
 	// ドラッグ状態を解除
 	isDragging_ = false;
 	isPlayerHovered_ = false;
-
 	// 元の位置に戻す
 	panel.dragSprite->SetPosition(panel.position);
 
@@ -183,13 +176,11 @@ ElementType ElementUI::Update(const Vector2& playerScreenPosition) {
 
 	return result;
 }
-
 // パネルを追加
 bool ElementUI::AddPanel(ElementType type, const std::string& texturePath, const Vector2& position, const Vector2& size) {
 	if (type == ElementType::None) {
 		return false;
 	}
-
 	// 同じエレメントが登録済みなら追加しない
 	for (const ElementPanel& panel : panels_) {
 		if (panel.type == type) {
@@ -205,7 +196,6 @@ bool ElementUI::AddPanel(ElementType type, const std::string& texturePath, const
 
 	// テクスチャを読み込んでスプライトを作成
 	panel.panelSprite = Sprite::Create(TextureManager::Load(texturePath), position);
-
 	panel.dragSprite = Sprite::Create(TextureManager::Load(texturePath), position);
 
 	if (!panel.panelSprite || !panel.dragSprite) {
@@ -226,6 +216,8 @@ bool ElementUI::AddPanel(ElementType type, const std::string& texturePath, const
 
 	return true;
 }
+//エレメント解除を取得
+bool ElementUI::IsClearRequested() { return isClearRequested_; }
 // ドラッグ中かどうか
 bool ElementUI::IsInside(const Vector2& point, const Vector2& center, const Vector2& halfSize) { return std::abs(point.x - center.x) <= halfSize.x && std::abs(point.y - center.y) <= halfSize.y; }
 // エレメント名を取得
