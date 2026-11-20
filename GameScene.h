@@ -11,7 +11,6 @@ using namespace KamataEngine;
 #include "Player.h"
 #include "UI.h"
 #include "Fire.h"
-
 #include "Scene.h"
 
 class GameScene : public Scene {
@@ -20,7 +19,6 @@ public:
 	void Finalize() override;
 	void Update() override;
 	void Draw() override;
-
 private:
 	// リセット
 	void Reset();
@@ -43,12 +41,12 @@ private:
 	// UI
 	std::unique_ptr<UI> ui_;
 	Player player_;
-
 	// ----- ステージ管理 -----
 	std::vector<std::string> stagePaths_ = {
 	    "Resources/mapdata/stage1.csv",
 	    "Resources/mapdata/stage2.csv",
 	    "Resources/mapdata/stage3.csv",
+	    "Resources/mapdata/stage4.csv",
 	};
 	int currentStageIndex_ = 0;
 	// クリア処理の多重発火防止
@@ -84,6 +82,8 @@ private:
 	int resetPercent_ = 0;
 	// マップエディタ用
 	int selectedCellType_ = 1;
+	// Switch・DoorのグループID
+	int selectedGroupId_ = 1;
 	// CSVファイルのパス
 	std::string csvPath_ = "Resources/mapdata/stage1.csv";
 	char csvPathBuffer_[256]{};

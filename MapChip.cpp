@@ -33,6 +33,23 @@ void MapChip::Draw(const Camera& camera) {
 			}
 		}
 	}
+	// スイッチ描画
+	for (auto& row : switches_) {
+		for (auto& sw : row) {
+			if (sw) {
+				sw->Draw(camera);
+			}
+		}
+	}
+
+	// 扉描画
+	for (auto& row : doors_) {
+		for (auto& door : row) {
+			if (door) {
+				door->Draw(camera);
+			}
+		}
+	}
 }
 // 終了処理
 void MapChip::Finalize() {
@@ -51,11 +68,8 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 		return false;
 	}
 
-	// 読み込みに失敗しても現在のマップを維持できるよう、
-	// 一時的な配列に読み込む
 	std::vector<std::vector<int>> newMapData;
 	std::string line;
-
 	// プレイヤー開始位置が複数ないか確認
 	int spawnCount = 0;
 
@@ -86,7 +100,11 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 			// 4: 燃えるブロック
 			// 5: 網目状ブロック
 			// 6: 火のギミック
-			if (value < 0 || value > 6) {
+			// 7001～7999: スイッチ
+			// 8001～8999: ドア
+			bool isValidValue = (value >= 0 && value <= 6) || (value >= 7001 && value <= 7999) || (value >= 8001 && value <= 8999);
+
+			if (!isValidValue) {
 				return false;
 			}
 
@@ -123,21 +141,27 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 
 	// CSV読み込み成功。マップデータを更新
 	mapData_ = std::move(newMapData);
-
 	// CSV読み込み時はマップ全体を再構築
 	blocks_.clear();
-	blocks_.resize(mapData_.size());
-
 	fires_.clear();
+	switches_.clear();
+	doors_.clear();
+
+	blocks_.resize(mapData_.size());
 	fires_.resize(mapData_.size());
+	switches_.resize(mapData_.size());
+	doors_.resize(mapData_.size());
 
 	hasGoal_ = false;
 
 	for (size_t row = 0; row < mapData_.size(); ++row) {
 		blocks_[row].resize(mapData_[row].size());
 		fires_[row].resize(mapData_[row].size());
+		switches_[row].resize(mapData_[row].size());
+		doors_[row].resize(mapData_[row].size());
 
 		for (size_t column = 0; column < mapData_[row].size(); ++column) {
+			// 終点が存在するかチェック
 			if (mapData_[row][column] == 2) {
 				hasGoal_ = true;
 			}
@@ -145,7 +169,6 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 			UpdateBlock(static_cast<int>(row), static_cast<int>(column));
 		}
 	}
-
 	// プレイヤー開始位置を更新
 	UpdatePlayerSpawnPosition();
 
@@ -158,7 +181,7 @@ bool MapChip::SaveCSV(const std::string& csvPath) {
 	if (!file.is_open()) {
 		return false;
 	}
-
+	// CSVの内容をファイルに書き込む
 	for (size_t row = 0; row < mapData_.size(); ++row) {
 		for (size_t column = 0; column < mapData_[row].size(); ++column) {
 			file << mapData_[row][column];
@@ -175,21 +198,21 @@ bool MapChip::SaveCSV(const std::string& csvPath) {
 }
 // マスの値を変更
 bool MapChip::SetCell(int row, int column, int value) {
-
 	// 範囲チェック
 	if (row < 0 || row >= static_cast<int>(mapData_.size())) {
 		return false;
 	}
-
+	// 範囲チェック
 	if (column < 0 || column >= static_cast<int>(mapData_[row].size())) {
 		return false;
 	}
-
 	// 値の範囲チェック
-	if (value < 0 || value > 6) {
+	bool isValidValue = (value >= 0 && value <= 6) 
+		|| (value >= 7001 && value <= 7999) || (value >= 8001 && value <= 8999);
+
+	if (!isValidValue) {
 		return false;
 	}
-
 	// プレイヤー開始位置は1つだけにする
 	if (value == 3) {
 		for (size_t r = 0; r < mapData_.size(); ++r) {
@@ -228,8 +251,7 @@ bool MapChip::SetCell(int row, int column, int value) {
 		}
 	}
 
-	// 変更されたマスを破棄して再生成
-	blocks_[row][column].reset();
+	// 変更したマスのブロックを更新
 	UpdateBlock(row, column);
 
 	// プレイヤー開始位置を更新
@@ -264,35 +286,91 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 	Vector3 pos = player.GetPosition();
 	const Vector3 prevPos = player.GetPreviousPosition();
 	const Vector3 playerHalf = player.GetHalfSize();
+
 	const ElementType playerElement = player.GetElement();
+
 	// 接地フラグ
 	bool grounded = false;
 	// 垂直速度
 	float newVerticalVelocity = player.GetVerticalVelocity();
-	// 前フレームからの移動量
+	// 前フレームからのY方向の移動量
 	const float moveY = pos.y - prevPos.y;
-	// 上下方向に移動していて、横方向には移動していない場合だけ
-	// 1マス分の縦の隙間に合わせてX座標を補正する
+	// 網目の隙間に合わせた位置補正
+	CorrectMeshGapPosition(pos, prevPos, playerHalf);
+	// Blockとの衝突判定
+	ResolveBlockCollision(pos, prevPos, playerHalf, playerElement, moveY, newVerticalVelocity, grounded);
+	// Doorとの衝突判定
+	ResolveDoorCollision(pos, prevPos, playerHalf, newVerticalVelocity, grounded);
+	// 解決後の位置を反映
+	player.SetPosition(pos);
+	player.SetVerticalVelocity(newVerticalVelocity);
+	player.SetGrounded(grounded);
+}
+// Playerと電気スイッチの当たリ判定
+void MapChip::ResolveSwitchCollision(Player& player) {
+
+	// 電気エレメント以外なら何もしない
+	if (player.GetElement() != ElementType::Electric) {
+		return;
+	}
+
+	const Vector3& playerPos = player.GetPosition();
+	const Vector3& playerHalf = player.GetHalfSize();
+	// 全Switchを調べる
+	for (auto& row : switches_) {
+		for (auto& sw : row) {
+
+			if (!sw || sw->IsActive()) {
+				continue;
+			}
+			const Vector3& switchPos = sw->GetPosition();
+			const Vector3& switchHalf = sw->GetHalfSize();
+			// AABBによる接触判定
+			bool overlapX = playerPos.x - playerHalf.x < switchPos.x + switchHalf.x && playerPos.x + playerHalf.x > switchPos.x - switchHalf.x;
+			bool overlapY = playerPos.y - playerHalf.y < switchPos.y + switchHalf.y && playerPos.y + playerHalf.y > switchPos.y - switchHalf.y;
+			bool overlapZ = playerPos.z - playerHalf.z < switchPos.z + switchHalf.z && playerPos.z + playerHalf.z > switchPos.z - switchHalf.z;
+
+			if (overlapX && overlapY && overlapZ) {
+				// SwitchをONにする
+				sw->Activate();
+				// 同じグループIDのDoorを開く
+				int groupId = sw->GetGroupId();
+
+				for (auto& doorRow : doors_) {
+					for (auto& door : doorRow) {
+
+						if (!door) {
+							continue;
+						}
+						// 同じグループIDのDoorを開く
+						if (door->GetGroupId() == groupId) {
+							door->Open();
+						}
+					}
+				}
+			}
+		}
+	}
+}
+// 網目ブロックの位置補正
+void MapChip::CorrectMeshGapPosition(Vector3& pos, const Vector3& prevPos, const Vector3& playerHalf) {
 	const float gapMoveX = pos.x - prevPos.x;
 	const float gapMoveY = pos.y - prevPos.y;
 	const float epsilon = 0.0001f;
 
+	// 上下方向に移動していて、横方向には移動していない場合だけ
 	if (std::abs(gapMoveX) <= epsilon && std::abs(gapMoveY) > epsilon) {
-
 		// プレイヤーに最も近いマスの中心X座標
 		const int candidateColumn = static_cast<int>(std::round(pos.x / blockSize_));
-
 		// 左右にブロックが存在する列だけを対象にする
 		if (candidateColumn > 0 && candidateColumn + 1 < static_cast<int>(blocks_[0].size())) {
 
 			const float targetX = static_cast<float>(candidateColumn) * blockSize_;
-
 			// マスの中心から半マス以内にいる場合だけ補正候補にする
 			if (std::abs(pos.x - targetX) <= blockSize_ * 0.5f) {
 
 				// 前フレームから現在までのプレイヤーの上下範囲
 				const float playerTop = (pos.y > prevPos.y ? pos.y : prevPos.y) + playerHalf.y;
-
 				const float playerBottom = (pos.y < prevPos.y ? pos.y : prevPos.y) - playerHalf.y;
 
 				for (size_t row = 0; row < blocks_.size(); ++row) {
@@ -303,11 +381,9 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 					if (centerBlock != nullptr && centerBlock->IsActive() && !centerBlock->IsGoal()) {
 						continue;
 					}
-
 					// 左右のブロックを取得
 					Block* leftBlock = blocks_[row][candidateColumn - 1].get();
 					Block* rightBlock = blocks_[row][candidateColumn + 1].get();
-
 					// 左右両方に有効なブロックが必要
 					const bool hasLeft = leftBlock != nullptr && leftBlock->IsActive() && !leftBlock->IsGoal();
 					const bool hasRight = rightBlock != nullptr && rightBlock->IsActive() && !rightBlock->IsGoal();
@@ -319,22 +395,26 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 					// このマスのY座標
 					const float cellY = static_cast<float>(blocks_.size() - 1 - row) * blockSize_;
 					const float cellHalf = blockSize_ * 0.5f;
-
 					// プレイヤーが上下方向からこのマスに接近しているか
 					const bool overlapsVertically = playerTop >= cellY - cellHalf && playerBottom <= cellY + cellHalf;
 
 					if (overlapsVertically) {
-						// 補正の強さ（小さいほどゆっくり寄る）
-						const float correctionStrength = 0.1f;
 
-						// 現在位置から隙間の中央へ少しだけ近づける
+						// 補正の強さ
+						const float correctionStrength = 0.1f;
+						// 隙間の中央へ少しだけ近づける
 						pos.x += (targetX - pos.x) * correctionStrength;
+
 						break;
 					}
 				}
 			}
 		}
 	}
+}
+// PlayerとブロックのAABB衝突判定
+void MapChip::ResolveBlockCollision(Vector3& pos, const Vector3& prevPos, const Vector3& playerHalf, ElementType playerElement, float moveY, float& newVerticalVelocity, bool& grounded) {
+	const float epsilon = 0.0001f;
 	// 各ブロックとの衝突判定
 	for (size_t row = 0; row < blocks_.size(); ++row) {
 		for (size_t column = 0; column < blocks_[row].size(); ++column) {
@@ -344,7 +424,6 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 			if (block == nullptr || !block->IsActive()) {
 				continue;
 			}
-
 			// ゴールは当たり判定を持たない
 			if (block->IsGoal()) {
 				continue;
@@ -352,30 +431,23 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 
 			const Vector3 blockPos = block->GetPosition();
 			const Vector3 blockHalf = block->GetHalfSize();
-
 			// 現在位置での重なり判定
-			const bool overlapX =
-				std::abs(pos.x - blockPos.x) <
-				(playerHalf.x + blockHalf.x);
-			const bool overlapY =
-				std::abs(pos.y - blockPos.y) <
-				(playerHalf.y + blockHalf.y);
-			const bool overlapZ =
-				std::abs(pos.z - blockPos.z) <
-				(playerHalf.z + blockHalf.z);
+			const bool overlapX = std::abs(pos.x - blockPos.x) < (playerHalf.x + blockHalf.x);
+			const bool overlapY = std::abs(pos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
+			const bool overlapZ = std::abs(pos.z - blockPos.z) < (playerHalf.z + blockHalf.z);
 
 			if (!(overlapX && overlapY && overlapZ)) {
 				continue;
 			}
 			// 火エレメントで燃えるブロックに触れた場合
-			if (playerElement == ElementType::Fire &&
-				block->IsBurnable()) {
+			if (playerElement == ElementType::Fire && block->IsBurnable()) {
+
 				block->Burn();
 				continue;
 			}
-			// 水エレメントなら網目ブロックを通過
-			if ((playerElement == ElementType::Water || playerElement == ElementType::Gas) &&
-				block->GetType() == BlockType::Mesh) {
+			// 水・気体エレメントなら網目ブロックを通過
+			if ((playerElement == ElementType::Water || playerElement == ElementType::Gas) && block->GetType() == BlockType::Mesh) {
+
 				continue;
 			}
 			// 縦方向の隙間を通過中か確認
@@ -395,109 +467,149 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 						Block* centerBlock = blocks_[row][candidateColumn].get();
 						Block* leftBlock = blocks_[row][candidateColumn - 1].get();
 						Block* rightBlock = blocks_[row][candidateColumn + 1].get();
-
+						// 中央のブロックが空きマスか、ゴールなら左右の衝突を無視
 						const bool centerIsEmpty = centerBlock == nullptr || !centerBlock->IsActive() || centerBlock->IsGoal();
-
+						// 左右のブロックが有効か
 						const bool leftIsSolid = leftBlock != nullptr && leftBlock->IsActive() && !leftBlock->IsGoal();
-
 						const bool rightIsSolid = rightBlock != nullptr && rightBlock->IsActive() && !rightBlock->IsGoal();
-
 						const bool isSideBlock = static_cast<int>(column) == candidateColumn - 1 || static_cast<int>(column) == candidateColumn + 1;
-
-						// 左右のブロックに挟まれた空きマスならその左右のブロックとの衝突を無視する
+						// 左右に挟まれた空きマスなら衝突を無視
 						if (centerIsEmpty && leftIsSolid && rightIsSolid && isSideBlock) {
+
 							continue;
 						}
 					}
 				}
 			}
 
-			const float blockTop =
-				blockPos.y + blockHalf.y;
-			const float blockBottom =
-				blockPos.y - blockHalf.y;
-
+			// 衝突判定のAABBの上下座標
+			const float blockTop = blockPos.y + blockHalf.y;
+			const float blockBottom = blockPos.y - blockHalf.y;
 			// 前フレームでY方向に重なっていたか
-			const bool prevOverlapY =
-				std::abs(prevPos.y - blockPos.y) <
-				(playerHalf.y + blockHalf.y);
+			const bool prevOverlapY = std::abs(prevPos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
 			// Y方向の衝突判定
-			// 下から上昇してブロックの下面に衝突
-			const bool hitCeiling =
-				moveY > 0.0f &&
-				(prevPos.y + playerHalf.y <= blockBottom + epsilon) &&
-				(pos.y + playerHalf.y > blockBottom);
-
+			const bool hitCeiling = moveY > 0.0f && (prevPos.y + playerHalf.y <= blockBottom + epsilon) && (pos.y + playerHalf.y > blockBottom);
 			// 上から落下してブロックの上面に着地
-			const bool hitFloor =
-				moveY < 0.0f &&
-				(prevPos.y - playerHalf.y >= blockTop - epsilon) &&
-				(pos.y - playerHalf.y < blockTop);
-
+			const bool hitFloor = moveY < 0.0f && (prevPos.y - playerHalf.y >= blockTop - epsilon) && (pos.y - playerHalf.y < blockTop);
+			// 頭打ち
 			if (hitCeiling) {
-
 				pos.y = blockBottom - playerHalf.y;
 				newVerticalVelocity = 0.0f;
 				continue;
 			}
-
+			// 着地
 			if (hitFloor) {
-
 				pos.y = blockTop + playerHalf.y;
 				newVerticalVelocity = 0.0f;
 				grounded = true;
-
 				continue;
 			}
 			// X方向・Z方向の衝突判定
 			if (prevOverlapY) {
 
-				const float penX =
-					(playerHalf.x + blockHalf.x) -
-					std::abs(pos.x - blockPos.x);
-
-				const float penZ =
-					(playerHalf.z + blockHalf.z) -
-					std::abs(pos.z - blockPos.z);
+				const float penX = (playerHalf.x + blockHalf.x) - std::abs(pos.x - blockPos.x);
+				const float penZ = (playerHalf.z + blockHalf.z) - std::abs(pos.z - blockPos.z);
 
 				if (penX < penZ) {
+
 					// X軸で押し戻す
 					if (pos.x > blockPos.x) {
-						pos.x =
-							blockPos.x +
-							blockHalf.x +
-							playerHalf.x;
+						pos.x = blockPos.x + blockHalf.x + playerHalf.x;
 					} else {
-						pos.x =
-							blockPos.x -
-							blockHalf.x -
-							playerHalf.x;
+						pos.x = blockPos.x - blockHalf.x - playerHalf.x;
 					}
 
 				} else {
+
 					// Z軸で押し戻す
 					if (pos.z > blockPos.z) {
-						pos.z =
-							blockPos.z +
-							blockHalf.z +
-							playerHalf.z;
+						pos.z = blockPos.z + blockHalf.z + playerHalf.z;
 					} else {
-						pos.z =
-							blockPos.z -
-							blockHalf.z -
-							playerHalf.z;
+						pos.z = blockPos.z - blockHalf.z - playerHalf.z;
 					}
 				}
 			}
 		}
 	}
-
-	// 解決後の位置を反映
-	player.SetPosition(pos);
-	player.SetVerticalVelocity(newVerticalVelocity);
-	player.SetGrounded(grounded);
 }
+// PlayerとドアのAABB衝突判定
+void MapChip::ResolveDoorCollision(Vector3& pos, const Vector3& prevPos, const Vector3& playerHalf, float& newVerticalVelocity, bool& grounded) {
+	const float epsilon = 0.0001f;
+	// Doorとの衝突判定
+	for (size_t row = 0; row < doors_.size(); ++row) {
+		for (size_t column = 0; column < doors_[row].size(); ++column) {
 
+			Door* door = doors_[row][column].get();
+
+			// Doorが存在しない、または開いている場合は無視
+			if (door == nullptr || door->IsOpen()) {
+				continue;
+			}
+
+			const Vector3 doorPos = door->GetPosition();
+			const Vector3 doorHalf = door->GetHalfSize();
+
+			// 現在位置での重なり判定
+			const bool overlapX = std::abs(pos.x - doorPos.x) < (playerHalf.x + doorHalf.x);
+			const bool overlapY = std::abs(pos.y - doorPos.y) < (playerHalf.y + doorHalf.y);
+			const bool overlapZ = std::abs(pos.z - doorPos.z) < (playerHalf.z + doorHalf.z);
+
+			if (!(overlapX && overlapY && overlapZ)) {
+				continue;
+			}
+
+			// Doorの上下座標
+			const float doorTop = doorPos.y + doorHalf.y;
+			const float doorBottom = doorPos.y - doorHalf.y;
+			// 前フレームでY方向に重なっていたか
+			const bool prevOverlapY = std::abs(prevPos.y - doorPos.y) < (playerHalf.y + doorHalf.y);
+			// 前フレームからのY方向の移動量
+			const float doorMoveY = pos.y - prevPos.y;
+			// 上方向への衝突（頭打ち）
+			const bool hitCeiling = doorMoveY > 0.0f && (prevPos.y + playerHalf.y <= doorBottom + epsilon) && (pos.y + playerHalf.y > doorBottom);
+			// 下方向への衝突（着地）
+			const bool hitFloor = doorMoveY < 0.0f && (prevPos.y - playerHalf.y >= doorTop - epsilon) && (pos.y - playerHalf.y < doorTop);
+			// 頭打ち
+			if (hitCeiling) {
+				pos.y = doorBottom - playerHalf.y;
+				newVerticalVelocity = 0.0f;
+				continue;
+			}
+			// 着地
+			if (hitFloor) {
+				pos.y = doorTop + playerHalf.y;
+				newVerticalVelocity = 0.0f;
+				grounded = true;
+				continue;
+			}
+			// X方向・Z方向の衝突判定
+			if (prevOverlapY) {
+
+				const float penX = (playerHalf.x + doorHalf.x) - std::abs(pos.x - doorPos.x);
+				const float penZ = (playerHalf.z + doorHalf.z) - std::abs(pos.z - doorPos.z);
+
+				if (penX < penZ) {
+
+					// X軸で押し戻す
+					if (pos.x > doorPos.x) {
+						pos.x = doorPos.x + doorHalf.x + playerHalf.x;
+					} else {
+						pos.x = doorPos.x - doorHalf.x - playerHalf.x;
+					}
+
+				} else {
+
+					// Z軸で押し戻す
+					if (pos.z > doorPos.z) {
+						pos.z = doorPos.z + doorHalf.z + playerHalf.z;
+					} else {
+						pos.z = doorPos.z - doorHalf.z - playerHalf.z;
+					}
+				}
+			}
+		}
+	}
+}
 // プレイヤー開始位置を取得
 bool MapChip::GetPlayerSpawnPosition(Vector3& position) {
 	if (!hasPlayerSpawnPosition_) {
@@ -524,11 +636,9 @@ bool MapChip::HasPlayerReachedGoal(const Player& player) const {
 
 			const Vector3 blockPos = block->GetPosition();
 			const Vector3 blockHalf = block->GetHalfSize();
-
+			// AABBによる重なり判定
 			const bool overlapX = std::abs(pos.x - blockPos.x) < (playerHalf.x + blockHalf.x);
-
 			const bool overlapY = std::abs(pos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
-
 			const bool overlapZ = std::abs(pos.z - blockPos.z) < (playerHalf.z + blockHalf.z);
 
 			if (overlapX && overlapY && overlapZ) {
@@ -557,19 +667,15 @@ bool MapChip::ResolveFireCollision(Player& player) {
 
 			const Vector3& firePos = fire->GetPosition();
 			const Vector3& fireHalf = fire->GetHalfSize();
-
 			// AABBによる接触判定
 			bool overlapX = std::abs(playerPos.x - firePos.x) < (playerHalf.x + fireHalf.x);
-
 			bool overlapY = std::abs(playerPos.y - firePos.y) < (playerHalf.y + fireHalf.y);
-
 			bool overlapZ = std::abs(playerPos.z - firePos.z) < (playerHalf.z + fireHalf.z);
 
 			// 接触していなければ次の火を調べる
 			if (!overlapX || !overlapY || !overlapZ) {
 				continue;
 			}
-
 			// 水なら火を消す
 			if (playerElement == ElementType::Water) {
 				fire->Extinguish();
@@ -587,22 +693,36 @@ bool MapChip::ResolveFireCollision(Player& player) {
 void MapChip::UpdateBlock(int row, int column) {
 
 	const int value = mapData_[row][column];
+
 	// 範囲チェック
 	blocks_[row][column].reset();
 	fires_[row][column].reset();
+	switches_[row][column].reset();
+	doors_[row][column].reset();
 	// 空きマスまたはプレイヤー開始位置
 	if (value == 0 || value == 3) {
 		return;
 	}
 	// マスの位置を計算
-    Vector3 position{
-	static_cast<float>(column) * blockSize_,
-	static_cast<float>(static_cast<int>(mapData_.size()) - 1 - row) * blockSize_, 0.0f};
-
-
+	Vector3 position{static_cast<float>(column) * blockSize_, static_cast<float>(static_cast<int>(mapData_.size()) - 1 - row) * blockSize_, 0.0f};
+	// 火のギミックを生成
 	if (value == 6) {
 		fires_[row][column] = std::make_unique<Fire>();
-		fires_[row][column]->Initialize(position,blockSize_);
+		fires_[row][column]->Initialize(position, blockSize_);
+		return;
+	}
+	// スイッチ
+	if (value >= 7001 && value <= 7999) {
+		int groupId = value - 7000;
+		switches_[row][column] = std::make_unique<Switch>();
+		switches_[row][column]->Initialize(position, groupId, blockSize_);
+		return;
+	}
+	// ドア
+	if (value >= 8001 && value <= 8999) {
+		int groupId = value - 8000;
+		doors_[row][column] = std::make_unique<Door>();
+		doors_[row][column]->Initialize(position, groupId, blockSize_);
 		return;
 	}
 
@@ -634,12 +754,9 @@ void MapChip::UpdateBlock(int row, int column) {
 
 	// 種類が違う場合は作り直す
 	blocks_[row][column].reset();
-
 	blocks_[row][column] = std::make_unique<Block>();
-
 	blocks_[row][column]->Initialize(position, isGoal, type);
 }
-
 // プレイヤー開始位置を更新
 void MapChip::UpdatePlayerSpawnPosition() {
 	hasPlayerSpawnPosition_ = false;

@@ -6,24 +6,20 @@
 
 void GameScene::Initialize() {
 	// カメラの初期化
-	camera_.translation_ = {20.0f, 10.0f, -30.0f};
+	camera_.translation_ = {20.4f, 10.0f, -30.0f};
 	camera_.Initialize();
-
 	// ステージ管理初期化
 	currentStageIndex_ = 0;
 	isClearTriggered_ = false;
 	csvPath_ = stagePaths_[0];
-
 	// CSVパスを入力欄に設定
 	strncpy_s(csvPathBuffer_, sizeof(csvPathBuffer_), csvPath_.c_str(), _TRUNCATE);
-
 	// マップを読み込む
 	if (mapChip_.Initialize(csvPath_, 2.0f)) {
 		message_ = "Map loaded.";
 	} else {
 		message_ = "Failed to load map.";
 	}
-
 	// プレイヤーの初期位置を設定
 	Vector3 spawnPosition;
 
@@ -52,7 +48,6 @@ void GameScene::Initialize() {
 	//%記号
 	resetPercentSymbolSprite_ = Sprite::Create(TextureManager::Load("percent.png"), resetPercentPosition_);
 	resetPercentSymbolSprite_->SetSize(resetPercentSymbolSize_);
-
 	// エレメントシステム
 	elementSystem_ = std::make_unique<ElementSystem>();
 	// エレメントUI
@@ -68,7 +63,11 @@ void GameScene::Initialize() {
 // 終了
 void GameScene::Finalize() {
 	mapChip_.Finalize();      // マップチップ
-	Block::FinalizeModels();  // ブロックの共有モデル解放
+	//各共有モデルを解放
+	Block::FinalizeModels(); 
+	Fire::FinalizeModel();
+	Switch::FinalizeModel();
+	Door::FinalizeModel();
 	ui_->Finalize();          // ポーズメニュー
 	delete resetMeterSprite_; // リセットゲージスプライト
 	// 数字スプライトの削除
@@ -79,7 +78,6 @@ void GameScene::Finalize() {
 		}
 	}
 	delete resetPercentSymbolSprite_; //%スプライト
-
 	// エレメントUI
 	if (elementUI_) {
 		elementUI_->Finalize();
@@ -90,8 +88,6 @@ void GameScene::Finalize() {
 		elementSystem_->Clear();
 		elementSystem_.reset();
 	}
-	// 火のギミックの共有モデル解放
-	Fire::FinalizeModel();
 }
 // 更新
 void GameScene::Update() {
@@ -106,7 +102,6 @@ void GameScene::Update() {
 	if (!ui_->IsPauseMenuActive()) {
 		CheckGoal();
 	}
-
 	// マップエディタ
 	DrawMapEditor();
 	// UI更新
@@ -136,7 +131,6 @@ void GameScene::Update() {
 	// ImGui更新
 	UpdateImGui();
 #endif
-
 	// ポーズメニューが表示されているならスキップ
 	if (ui_->IsPauseMenuActive()) {
 		return;
@@ -160,7 +154,9 @@ void GameScene::Update() {
 	}
 	// エレメントシステムの状態をプレイヤーに反映
 	player_.SetElement(elementSystem_->GetCurrentElement());
-
+	// Playerとスイッチの接触判定
+	mapChip_.ResolveSwitchCollision(player_);
+	// 火のギミックとの接触判定
 	if (mapChip_.ResolveFireCollision(player_)) {
 		// 火に触れたらステージリトライ
 		LoadStage(currentStageIndex_);
@@ -171,7 +167,7 @@ void GameScene::Update() {
 	elementUI_->Debug(*elementSystem_, playerScreenPosition_);
 #endif
 }
-
+//描画
 void GameScene::Draw() {
 	Model::PreDraw();
 
@@ -196,7 +192,6 @@ void GameScene::Draw() {
 		float totalWidth = digitCount * resetPercentDigitSize_.x + resetPercentSymbolSize_.x + digitCount * resetPercentSpacing_;
 
 		float startX = resetPercentPosition_.x - totalWidth / 2.0f;
-
 		// 各桁の数字を描画
 		for (int i = 0; i < digitCount; ++i) {
 			int number = percentText[i] - '0';
@@ -231,7 +226,6 @@ void GameScene::Reset() {
 		}
 		// 進行率を整数に変換
 		resetPercent_ = static_cast<int>(rate * 100.0f);
-
 		// ゲージを左から右へ伸ばす
 		resetMeterSprite_->SetSize({resetMeterSize_.x * rate, resetMeterSize_.y});
 		// 必要時間まで長押ししたらリセット
@@ -264,7 +258,6 @@ void GameScene::LoadStage(int index) {
 	} else {
 		message_ = "Failed to load stage " + std::to_string(index + 1);
 	}
-
 	// CSVからプレイヤーの初期位置を取得
 	Vector3 spawnPosition;
 
@@ -274,11 +267,9 @@ void GameScene::LoadStage(int index) {
 		// スポーン位置が設定されていない場合
 		player_.SetPosition({0.0f, 5.0f, 0.0f});
 	}
-
 	// プレイヤーの物理状態をリセット
 	player_.SetVerticalVelocity(0.0f);
 	player_.SetGrounded(false);
-
 	// クリア判定・リセット状態をリセット
 	isClearTriggered_ = false;
 	isResetRequested_ = false;
@@ -288,7 +279,6 @@ void GameScene::LoadStage(int index) {
 	if (resetMeterSprite_) {
 		resetMeterSprite_->SetSize({0.0f, resetMeterSize_.y});
 	}
-
 	// エレメント状態もリセット
 	if (elementSystem_) {
 		elementSystem_->Clear();
@@ -309,7 +299,6 @@ void GameScene::CheckGoal() {
 	}
 
 	isClearTriggered_ = true;
-
 	// 次のステージが存在するか？
 	if (currentStageIndex_ + 1 < static_cast<int>(stagePaths_.size())) {
 		LoadStage(currentStageIndex_ + 1);
@@ -318,7 +307,6 @@ void GameScene::CheckGoal() {
 		sceneManager_->ChangeScene(SceneType::Game);
 	}
 }
-
 #pragma region マップエディタ
 void GameScene::DrawMapEditor() {
 #ifdef _DEBUG
@@ -334,7 +322,6 @@ void GameScene::DrawMapEditor() {
 	}
 
 	ImGui::SameLine();
-
 	// CSV保存
 	if (ImGui::Button("Save")) {
 		csvPath_ = csvPathBuffer_;
@@ -347,7 +334,6 @@ void GameScene::DrawMapEditor() {
 	}
 
 	ImGui::SameLine();
-
 	// CSV読み込み
 	if (ImGui::Button("Load")) {
 		csvPath_ = csvPathBuffer_;
@@ -377,36 +363,56 @@ void GameScene::DrawMapEditor() {
 
 	ImGui::Text("TILE PALETTE");
 	ImGui::Separator();
-
+	//空
 	if (ImGui::Selectable("Erase", selectedCellType_ == 0)) {
 		selectedCellType_ = 0;
 	}
-
+	//普通ブロック
 	if (ImGui::Selectable("Normal Block", selectedCellType_ == 1)) {
 		selectedCellType_ = 1;
 	}
-
+	//ゴール
 	if (ImGui::Selectable("Goal", selectedCellType_ == 2)) {
 		selectedCellType_ = 2;
 	}
-
+	//プレイヤー初期位置
 	if (ImGui::Selectable("Player Spawn", selectedCellType_ == 3)) {
 		selectedCellType_ = 3;
 	}
-
+	//可燃ブロック
 	if (ImGui::Selectable("Burnable Block", selectedCellType_ == 4)) {
 		selectedCellType_ = 4;
 	}
-
+	//網目ブロック
 	if (ImGui::Selectable("Mesh Block", selectedCellType_ == 5)) {
 		selectedCellType_ = 5;
 	}
-
+	//炎
 	if (ImGui::Selectable("Fire", selectedCellType_ == 6)) {
 		selectedCellType_ = 6;
 	}
+	//スイッチ
+	if (ImGui::Selectable("Switch", selectedCellType_ == 7)) {
+		selectedCellType_ = 7;
+	}
+	//ドア
+	if (ImGui::Selectable("Door", selectedCellType_ == 8)) {
+		selectedCellType_ = 8;
+	}
 
 	ImGui::Separator();
+	// SwitchとDoorのグループID
+	ImGui::Text("Group ID");
+	ImGui::SetNextItemWidth(100.0f);
+	ImGui::InputInt("##GroupID", &selectedGroupId_);
+
+	// IDの範囲を1～999に制限
+	if (selectedGroupId_ < 1) {
+		selectedGroupId_ = 1;
+	}
+	if (selectedGroupId_ > 999) {
+		selectedGroupId_ = 999;
+	}
 
 	ImGui::TextWrapped("Left Click / Drag : Place");
 	ImGui::TextWrapped("Right Click : Erase");
@@ -416,12 +422,10 @@ void GameScene::DrawMapEditor() {
 	ImGui::SameLine();
 
 	//マップキャンバス
-
 	ImGui::BeginChild("MapCanvas", ImVec2(0.0f, 0.0f), true, ImGuiWindowFlags_HorizontalScrollbar);
 
 	const int rowCount = mapChip_.GetRowCount();
 	const int columnCount = mapChip_.GetColumnCount();
-
 	// マスの大きさ
 	const float cellSize = 32.0f;
 
@@ -432,36 +436,39 @@ void GameScene::DrawMapEditor() {
 
 		// キャンバスの左上の画面座標
 		ImVec2 canvasPos = ImGui::GetCursorScreenPos();
-
 		// マウス操作を受け取る透明なボタン
 		ImGui::InvisibleButton("MapGrid", ImVec2(canvasWidth, canvasHeight));
 
 		bool isHovered = ImGui::IsItemHovered();
 
 		ImVec2 mousePos = ImGui::GetMousePos();
-
 		// マウス位置からマス番号を計算
 		int mouseColumn = static_cast<int>((mousePos.x - canvasPos.x) / cellSize);
-
 		int mouseRow = static_cast<int>((mousePos.y - canvasPos.y) / cellSize);
-
 		// マウスがマップ内にあるか
 		bool isInsideMap = mouseColumn >= 0 && mouseColumn < columnCount && mouseRow >= 0 && mouseRow < rowCount;
 
 		// マウスによる配置・消去
-
 		if (isHovered && isInsideMap) {
-
 			// 左クリック・ドラッグ：選択中のタイルを配置
 			if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 
 				int currentCell = mapChip_.GetCell(mouseRow, mouseColumn);
+				// 実際に配置するCSV値
+				int placeValue = selectedCellType_;
 
-				if (currentCell != selectedCellType_) {
-					mapChip_.SetCell(mouseRow, mouseColumn, selectedCellType_);
+				if (selectedCellType_ == 7) {
+					// Switch
+					placeValue = 7000 + selectedGroupId_;
+				} else if (selectedCellType_ == 8) {
+					// Door
+					placeValue = 8000 + selectedGroupId_;
+				}
+
+				if (currentCell != placeValue) {
+					mapChip_.SetCell(mouseRow, mouseColumn, placeValue);
 				}
 			}
-
 			// 右クリック：消去
 			if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
 
@@ -479,9 +486,9 @@ void GameScene::DrawMapEditor() {
 			for (int column = 0; column < columnCount; ++column) {
 
 				int cell = mapChip_.GetCell(row, column);
-
 				ImU32 color = IM_COL32(55, 55, 55, 255);
 
+				char groupLabel[16] = "";
 				const char* label = "";
 
 				switch (cell) {
@@ -521,47 +528,48 @@ void GameScene::DrawMapEditor() {
 					break;
 				}
 
+				//スイッチ
+				if (cell >= 7001 && cell <= 7999) {
+					color = IM_COL32(180, 100, 220, 255);
+					std::snprintf(groupLabel, sizeof(groupLabel), "S%d", cell - 7000);
+					label = groupLabel;
+				}
+				//ドア
+				else if (cell >= 8001 && cell <= 8999) {
+					color = IM_COL32(80, 120, 200, 255);
+					std::snprintf(groupLabel, sizeof(groupLabel), "D%d", cell - 8000);
+					label = groupLabel;
+				}
+
 				ImVec2 cellMin(canvasPos.x + column * cellSize, canvasPos.y + row * cellSize);
-
 				ImVec2 cellMax(cellMin.x + cellSize, cellMin.y + cellSize);
-
 				// マスの背景
 				drawList->AddRectFilled(cellMin, cellMax, color);
-
 				// マスの枠線
 				drawList->AddRect(cellMin, cellMax, IM_COL32(30, 30, 30, 255));
-
 				// マスの文字
 				if (label[0] != '\0') {
-
 					ImVec2 textSize = ImGui::CalcTextSize(label);
-
 					ImVec2 textPos(cellMin.x + (cellSize - textSize.x) * 0.5f, cellMin.y + (cellSize - textSize.y) * 0.5f);
-
 					drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), label);
 				}
 			}
 		}
-
 		// マウス位置のハイライト
 		if (isHovered && isInsideMap) {
 
 			ImVec2 highlightMin(canvasPos.x + mouseColumn * cellSize, canvasPos.y + mouseRow * cellSize);
-
 			ImVec2 highlightMax(highlightMin.x + cellSize, highlightMin.y + cellSize);
-
 			drawList->AddRect(highlightMin, highlightMax, IM_COL32(255, 255, 255, 255), 0.0f, 0, 2.0f);
 		}
 	}
 
 	ImGui::EndChild();
-
 	ImGui::End();
 
 #endif
 }
 #pragma endregion
-
 // カメラ移動(デバック用)
 void GameScene::UpdateCamera() {
 	// マウス中ボタンを押しながらドラッグするとカメラを移動
@@ -573,13 +581,11 @@ void GameScene::UpdateCamera() {
 		camera_.translation_.x += static_cast<float>(mouseMove.lX) * cameraMoveSpeed;
 		camera_.translation_.y -= static_cast<float>(mouseMove.lY) * cameraMoveSpeed;
 	}
-
 	// マウスホイールでカメラのZ座標を移動
 	const int32_t wheel = Input::GetInstance()->GetWheel();
+	// ホイールの回転量に応じてカメラのZ座標を移動
 	const float zoomSpeed = 0.01f;
-
 	camera_.translation_.z += static_cast<float>(wheel) * zoomSpeed;
-
 	// カメラ行列を更新
 	camera_.UpdateMatrix();
 	camera_.TransferMatrix();
@@ -678,7 +684,6 @@ void GameScene::UpdateImGui() {
 #endif
 }
 #pragma endregion
-
 // プレイヤーのワールド座標をスクリーンへ変換
 Vector2 GameScene::GetPlayerScreenPosition() {
 	// ゲーム画面のサイズ
@@ -692,7 +697,6 @@ Vector2 GameScene::GetPlayerScreenPosition() {
 	float clipX = playerPosition.x * viewProjection.m[0][0] + playerPosition.y * viewProjection.m[1][0] + playerPosition.z * viewProjection.m[2][0] + viewProjection.m[3][0];
 	float clipY = playerPosition.x * viewProjection.m[0][1] + playerPosition.y * viewProjection.m[1][1] + playerPosition.z * viewProjection.m[2][1] + viewProjection.m[3][1];
 	float clipW = playerPosition.x * viewProjection.m[0][3] + playerPosition.y * viewProjection.m[1][3] + playerPosition.z * viewProjection.m[2][3] + viewProjection.m[3][3];
-
 	// カメラの後ろにある場合
 	if (clipW <= 0.0001f) {
 		return {-10000.0f, -10000.0f};
@@ -700,10 +704,8 @@ Vector2 GameScene::GetPlayerScreenPosition() {
 	// NDC座標に変換
 	float ndcX = clipX / clipW;
 	float ndcY = clipY / clipW;
-
 	// スクリーン座標に変換
 	Vector2 screenPosition;
-
 	screenPosition.x = (ndcX + 1.0f) * 0.5f * screenWidth;
 	screenPosition.y = (1.0f - ndcY) * 0.5f * screenHeight;
 
