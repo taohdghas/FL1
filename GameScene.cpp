@@ -52,7 +52,6 @@ void GameScene::Initialize() {
 	//%記号
 	resetPercentSymbolSprite_ = Sprite::Create(TextureManager::Load("percent.png"), resetPercentPosition_);
 	resetPercentSymbolSprite_->SetSize(resetPercentSymbolSize_);
-
 	// エレメントシステム
 	elementSystem_ = std::make_unique<ElementSystem>();
 	// エレメントUI
@@ -68,7 +67,11 @@ void GameScene::Initialize() {
 // 終了
 void GameScene::Finalize() {
 	mapChip_.Finalize();      // マップチップ
-	Block::FinalizeModels();  // ブロックの共有モデル解放
+	//各共有モデルを解放
+	Block::FinalizeModels(); 
+	Fire::FinalizeModel();
+	Switch::FinalizeModel();
+	Door::FinalizeModel();
 	ui_->Finalize();          // ポーズメニュー
 	delete resetMeterSprite_; // リセットゲージスプライト
 	// 数字スプライトの削除
@@ -90,8 +93,6 @@ void GameScene::Finalize() {
 		elementSystem_->Clear();
 		elementSystem_.reset();
 	}
-	// 火のギミックの共有モデル解放
-	Fire::FinalizeModel();
 }
 // 更新
 void GameScene::Update() {
@@ -158,6 +159,8 @@ void GameScene::Update() {
 	}
 	// エレメントシステムの状態をプレイヤーに反映
 	player_.SetElement(elementSystem_->GetCurrentElement());
+	// Playerとスイッチの接触判定
+	mapChip_.ResolveSwitchCollision(player_);
 	// 火のギミックとの接触判定
 	if (mapChip_.ResolveFireCollision(player_)) {
 		// 火に触れたらステージリトライ
@@ -326,7 +329,6 @@ void GameScene::DrawMapEditor() {
 	}
 
 	ImGui::SameLine();
-
 	// CSV保存
 	if (ImGui::Button("Save")) {
 		csvPath_ = csvPathBuffer_;
@@ -339,7 +341,6 @@ void GameScene::DrawMapEditor() {
 	}
 
 	ImGui::SameLine();
-
 	// CSV読み込み
 	if (ImGui::Button("Load")) {
 		csvPath_ = csvPathBuffer_;
@@ -369,36 +370,56 @@ void GameScene::DrawMapEditor() {
 
 	ImGui::Text("TILE PALETTE");
 	ImGui::Separator();
-
+	//空
 	if (ImGui::Selectable("Erase", selectedCellType_ == 0)) {
 		selectedCellType_ = 0;
 	}
-
+	//普通ブロック
 	if (ImGui::Selectable("Normal Block", selectedCellType_ == 1)) {
 		selectedCellType_ = 1;
 	}
-
+	//ゴール
 	if (ImGui::Selectable("Goal", selectedCellType_ == 2)) {
 		selectedCellType_ = 2;
 	}
-
+	//プレイヤー初期位置
 	if (ImGui::Selectable("Player Spawn", selectedCellType_ == 3)) {
 		selectedCellType_ = 3;
 	}
-
+	//可燃ブロック
 	if (ImGui::Selectable("Burnable Block", selectedCellType_ == 4)) {
 		selectedCellType_ = 4;
 	}
-
+	//網目ブロック
 	if (ImGui::Selectable("Mesh Block", selectedCellType_ == 5)) {
 		selectedCellType_ = 5;
 	}
-
+	//炎
 	if (ImGui::Selectable("Fire", selectedCellType_ == 6)) {
 		selectedCellType_ = 6;
 	}
+	//スイッチ
+	if (ImGui::Selectable("Switch", selectedCellType_ == 7)) {
+		selectedCellType_ = 7;
+	}
+	//ドア
+	if (ImGui::Selectable("Door", selectedCellType_ == 8)) {
+		selectedCellType_ = 8;
+	}
 
 	ImGui::Separator();
+	// SwitchとDoorのグループID
+	ImGui::Text("Group ID");
+	ImGui::SetNextItemWidth(100.0f);
+	ImGui::InputInt("##GroupID", &selectedGroupId_);
+
+	// IDの範囲を1～999に制限
+	if (selectedGroupId_ < 1) {
+		selectedGroupId_ = 1;
+	}
+	if (selectedGroupId_ > 999) {
+		selectedGroupId_ = 999;
+	}
 
 	ImGui::TextWrapped("Left Click / Drag : Place");
 	ImGui::TextWrapped("Right Click : Erase");
@@ -408,12 +429,10 @@ void GameScene::DrawMapEditor() {
 	ImGui::SameLine();
 
 	//マップキャンバス
-
 	ImGui::BeginChild("MapCanvas", ImVec2(0.0f, 0.0f), true, ImGuiWindowFlags_HorizontalScrollbar);
 
 	const int rowCount = mapChip_.GetRowCount();
 	const int columnCount = mapChip_.GetColumnCount();
-
 	// マスの大きさ
 	const float cellSize = 32.0f;
 
@@ -424,36 +443,39 @@ void GameScene::DrawMapEditor() {
 
 		// キャンバスの左上の画面座標
 		ImVec2 canvasPos = ImGui::GetCursorScreenPos();
-
 		// マウス操作を受け取る透明なボタン
 		ImGui::InvisibleButton("MapGrid", ImVec2(canvasWidth, canvasHeight));
 
 		bool isHovered = ImGui::IsItemHovered();
 
 		ImVec2 mousePos = ImGui::GetMousePos();
-
 		// マウス位置からマス番号を計算
 		int mouseColumn = static_cast<int>((mousePos.x - canvasPos.x) / cellSize);
-
 		int mouseRow = static_cast<int>((mousePos.y - canvasPos.y) / cellSize);
-
 		// マウスがマップ内にあるか
 		bool isInsideMap = mouseColumn >= 0 && mouseColumn < columnCount && mouseRow >= 0 && mouseRow < rowCount;
 
 		// マウスによる配置・消去
-
 		if (isHovered && isInsideMap) {
-
 			// 左クリック・ドラッグ：選択中のタイルを配置
 			if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 
 				int currentCell = mapChip_.GetCell(mouseRow, mouseColumn);
+				// 実際に配置するCSV値
+				int placeValue = selectedCellType_;
 
-				if (currentCell != selectedCellType_) {
-					mapChip_.SetCell(mouseRow, mouseColumn, selectedCellType_);
+				if (selectedCellType_ == 7) {
+					// Switch
+					placeValue = 7000 + selectedGroupId_;
+				} else if (selectedCellType_ == 8) {
+					// Door
+					placeValue = 8000 + selectedGroupId_;
+				}
+
+				if (currentCell != placeValue) {
+					mapChip_.SetCell(mouseRow, mouseColumn, placeValue);
 				}
 			}
-
 			// 右クリック：消去
 			if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
 
@@ -471,9 +493,9 @@ void GameScene::DrawMapEditor() {
 			for (int column = 0; column < columnCount; ++column) {
 
 				int cell = mapChip_.GetCell(row, column);
-
 				ImU32 color = IM_COL32(55, 55, 55, 255);
 
+				char groupLabel[16] = "";
 				const char* label = "";
 
 				switch (cell) {
@@ -513,41 +535,43 @@ void GameScene::DrawMapEditor() {
 					break;
 				}
 
+				//スイッチ
+				if (cell >= 7001 && cell <= 7999) {
+					color = IM_COL32(180, 100, 220, 255);
+					std::snprintf(groupLabel, sizeof(groupLabel), "S%d", cell - 7000);
+					label = groupLabel;
+				}
+				//ドア
+				else if (cell >= 8001 && cell <= 8999) {
+					color = IM_COL32(80, 120, 200, 255);
+					std::snprintf(groupLabel, sizeof(groupLabel), "D%d", cell - 8000);
+					label = groupLabel;
+				}
+
 				ImVec2 cellMin(canvasPos.x + column * cellSize, canvasPos.y + row * cellSize);
-
 				ImVec2 cellMax(cellMin.x + cellSize, cellMin.y + cellSize);
-
 				// マスの背景
 				drawList->AddRectFilled(cellMin, cellMax, color);
-
 				// マスの枠線
 				drawList->AddRect(cellMin, cellMax, IM_COL32(30, 30, 30, 255));
-
 				// マスの文字
 				if (label[0] != '\0') {
-
 					ImVec2 textSize = ImGui::CalcTextSize(label);
-
 					ImVec2 textPos(cellMin.x + (cellSize - textSize.x) * 0.5f, cellMin.y + (cellSize - textSize.y) * 0.5f);
-
 					drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), label);
 				}
 			}
 		}
-
 		// マウス位置のハイライト
 		if (isHovered && isInsideMap) {
 
 			ImVec2 highlightMin(canvasPos.x + mouseColumn * cellSize, canvasPos.y + mouseRow * cellSize);
-
 			ImVec2 highlightMax(highlightMin.x + cellSize, highlightMin.y + cellSize);
-
 			drawList->AddRect(highlightMin, highlightMax, IM_COL32(255, 255, 255, 255), 0.0f, 0, 2.0f);
 		}
 	}
 
 	ImGui::EndChild();
-
 	ImGui::End();
 
 #endif

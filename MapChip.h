@@ -5,6 +5,8 @@ using namespace KamataEngine;
 #include "Block.h"
 #include "Player.h"
 #include "Fire.h"
+#include "Switch.h"
+#include "Door.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -13,13 +15,23 @@ class MapChip {
 public:
 	MapChip() = default;
 	~MapChip();
-
+	//初期化
 	bool Initialize(const std::string& csvPath, float blockSize = 2.0f);
 	void Update();
 	void Draw(const Camera& camera);
 	void Finalize();
-	// Playerと各BlockのAABB衝突を解決する
+	// Playerと各BlockのAABB衝突判定
 	void ResolvePlayerCollision(Player& player) ;
+	//Playerと電気スイッチの当たリ判定
+	void ResolveSwitchCollision(Player& player);
+	//網目ブロックの位置補正
+	void CorrectMeshGapPosition(Vector3&pos,const Vector3&prevPos,const Vector3&playerHalf);
+	// PlayerとブロックのAABB衝突判定
+	void ResolveBlockCollision(Vector3& pos, const Vector3& prevPos, const Vector3& playerHalf,
+		ElementType playerElement, float moveY, float& newVerticalVelocity, bool& grounded);
+	// PlayerとドアのAABB衝突判定
+	void ResolveDoorCollision(Vector3&pos,const Vector3&prevPos,const Vector3&playerHalf,
+		float&newVerticalVelocity,bool & grounded);
 	// プレイヤーが終点に到達したか（AABB重なり）
 	bool HasPlayerReachedGoal(const Player& player) const;
 	//火のギミックとの接触判定
@@ -49,10 +61,13 @@ private:
 	// マップデータ
 	std::vector<std::vector<int>> mapData_;
 	// 各マスに対応するブロック
-	// nullptrならブロックなし
 	std::vector<std::vector<std::unique_ptr<Block>>> blocks_;
 	//火のギミック管理
 	std::vector<std::vector<std::unique_ptr<Fire>>> fires_;
+	// スイッチ管理
+	std::vector<std::vector<std::unique_ptr<Switch>>> switches_;
+	// ドア管理
+	std::vector<std::vector<std::unique_ptr<Door>>> doors_;
 	//ブロックの1マスのサイズ
 	float blockSize_ = 2.0f;
 	//プレイヤー開始位置
