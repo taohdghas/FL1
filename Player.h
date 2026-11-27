@@ -38,6 +38,8 @@ private:
 	Vector3 position_{};
 	Vector3 previousPosition_{};
 	Vector3 halfSize_{0.5f, 0.5f, 0.5f};
+	Vector3 normalScale_{1.0f, 1.0f, 1.0f};
+	float waterScaleRate_ = 0.5f;
 	float verticalVelocity_ = 0.0f;
 	float moveSpeed_ = 0.1f;
 	float jumpPower_ = 0.28f;

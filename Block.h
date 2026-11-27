@@ -29,14 +29,13 @@ public:
 	bool IsBurnable()const { return type_ == BlockType::Burnable; }
 	//ブロックが有効か判定
 	bool IsActive() const{ return isActive_; }
-
+	//位置を設定
 	void SetPosition(const Vector3& position) { position_ = position; }
 	const Vector3& GetPosition()const { return position_; }
 	//ブロックの半サイズを返す
 	const Vector3& GetHalfSize() const { return halfSize_; }
 	//ブロック種類を取得
 	BlockType GetType() const { return type_; }
-
 	// 終点ブロックか
 	bool IsGoal() const { return isGoal_; }
 

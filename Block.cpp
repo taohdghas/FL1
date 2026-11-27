@@ -28,7 +28,6 @@ void Block::Initialize(const Vector3& position, bool isGoal, BlockType type) {
 	if (meshModel_ == nullptr) {
         meshModel_ = Model::CreateFromOBJ("mesh");
 	}
-
     // ゴール
     if (isGoal_) {
         goalModel_ = Model::CreateFromOBJ("cube");
@@ -40,7 +39,6 @@ void Block::Initialize(const Vector3& position, bool isGoal, BlockType type) {
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
-
 	// 衝突判定のAABBはグリッド1マス分に合わせる
 	halfSize_ = {1.0f * worldTransform_.scale_.x, 1.0f * worldTransform_.scale_.y, 1.0f * worldTransform_.scale_.z};
 

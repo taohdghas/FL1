@@ -207,8 +207,7 @@ bool MapChip::SetCell(int row, int column, int value) {
 		return false;
 	}
 	// 値の範囲チェック
-	bool isValidValue = (value >= 0 && value <= 6) 
-		|| (value >= 7001 && value <= 7999) || (value >= 8001 && value <= 8999);
+	bool isValidValue = (value >= 0 && value <= 6) || (value >= 7001 && value <= 7999) || (value >= 8001 && value <= 8999);
 
 	if (!isValidValue) {
 		return false;
@@ -446,7 +445,7 @@ void MapChip::ResolveBlockCollision(Vector3& pos, const Vector3& prevPos, const 
 				continue;
 			}
 			// 水・気体エレメントなら網目ブロックを通過
-			if ((playerElement == ElementType::Water || playerElement == ElementType::Gas) && block->GetType() == BlockType::Mesh) {
+			if (playerElement == ElementType::Gas && block->GetType() == BlockType::Mesh) {
 
 				continue;
 			}
@@ -504,29 +503,14 @@ void MapChip::ResolveBlockCollision(Vector3& pos, const Vector3& prevPos, const 
 				grounded = true;
 				continue;
 			}
-			// X方向・Z方向の衝突判定
+			// X方向の衝突判定
 			if (prevOverlapY) {
 
-				const float penX = (playerHalf.x + blockHalf.x) - std::abs(pos.x - blockPos.x);
-				const float penZ = (playerHalf.z + blockHalf.z) - std::abs(pos.z - blockPos.z);
-
-				if (penX < penZ) {
-
-					// X軸で押し戻す
-					if (pos.x > blockPos.x) {
-						pos.x = blockPos.x + blockHalf.x + playerHalf.x;
-					} else {
-						pos.x = blockPos.x - blockHalf.x - playerHalf.x;
-					}
-
+				// X軸で押し戻す
+				if (pos.x > blockPos.x) {
+					pos.x = blockPos.x + blockHalf.x + playerHalf.x;
 				} else {
-
-					// Z軸で押し戻す
-					if (pos.z > blockPos.z) {
-						pos.z = blockPos.z + blockHalf.z + playerHalf.z;
-					} else {
-						pos.z = blockPos.z - blockHalf.z - playerHalf.z;
-					}
+					pos.x = blockPos.x - blockHalf.x - playerHalf.x;
 				}
 			}
 		}
@@ -585,26 +569,11 @@ void MapChip::ResolveDoorCollision(Vector3& pos, const Vector3& prevPos, const V
 			// X方向・Z方向の衝突判定
 			if (prevOverlapY) {
 
-				const float penX = (playerHalf.x + doorHalf.x) - std::abs(pos.x - doorPos.x);
-				const float penZ = (playerHalf.z + doorHalf.z) - std::abs(pos.z - doorPos.z);
-
-				if (penX < penZ) {
-
-					// X軸で押し戻す
-					if (pos.x > doorPos.x) {
-						pos.x = doorPos.x + doorHalf.x + playerHalf.x;
-					} else {
-						pos.x = doorPos.x - doorHalf.x - playerHalf.x;
-					}
-
+				// X軸で押し戻す
+				if (pos.x > doorPos.x) {
+					pos.x = doorPos.x + doorHalf.x + playerHalf.x;
 				} else {
-
-					// Z軸で押し戻す
-					if (pos.z > doorPos.z) {
-						pos.z = doorPos.z + doorHalf.z + playerHalf.z;
-					} else {
-						pos.z = doorPos.z - doorHalf.z - playerHalf.z;
-					}
+					pos.x = doorPos.x - doorHalf.x - playerHalf.x;
 				}
 			}
 		}
