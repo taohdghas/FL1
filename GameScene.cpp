@@ -62,9 +62,9 @@ void GameScene::Initialize() {
 }
 // 終了
 void GameScene::Finalize() {
-	mapChip_.Finalize();      // マップチップ
-	//各共有モデルを解放
-	Block::FinalizeModels(); 
+	mapChip_.Finalize(); // マップチップ
+	// 各共有モデルを解放
+	Block::FinalizeModels();
 	Fire::FinalizeModel();
 	Switch::FinalizeModel();
 	Door::FinalizeModel();
@@ -127,7 +127,7 @@ void GameScene::Update() {
 	// UIデバック
 	ui_->Debug();
 	// カメラ移動(デバック用)
-	//UpdateCamera();
+	// UpdateCamera();
 	// ImGui更新
 	UpdateImGui();
 #endif
@@ -152,7 +152,7 @@ void GameScene::Update() {
 	if (connectedElement != ElementType::None) {
 		elementSystem_->Connect(connectedElement, fireDuration_);
 	}
-	//右クリックしたらエレメント解除
+	// 右クリックしたらエレメント解除
 	if (elementUI_->IsClearRequested()) {
 		elementSystem_->Clear();
 	}
@@ -171,7 +171,7 @@ void GameScene::Update() {
 	elementUI_->Debug(*elementSystem_, playerScreenPosition_);
 #endif
 }
-//描画
+// 描画
 void GameScene::Draw() {
 	Model::PreDraw();
 
@@ -317,7 +317,7 @@ void GameScene::DrawMapEditor() {
 
 	ImGui::Begin("LEVEL EDITOR");
 
-	//ファイル操作
+	// ファイル操作
 	ImGui::Text("CSV File");
 	ImGui::SetNextItemWidth(260.0f);
 
@@ -362,46 +362,50 @@ void GameScene::DrawMapEditor() {
 	ImGui::Text("%s", message_.c_str());
 
 	ImGui::Separator();
-	//タイルパレット
+	// タイルパレット
 	ImGui::BeginChild("TilePalette", ImVec2(160.0f, 0.0f), true);
 
 	ImGui::Text("TILE PALETTE");
 	ImGui::Separator();
-	//空
+	// 空
 	if (ImGui::Selectable("Erase", selectedCellType_ == 0)) {
 		selectedCellType_ = 0;
 	}
-	//普通ブロック
+	// 普通ブロック
 	if (ImGui::Selectable("Normal Block", selectedCellType_ == 1)) {
 		selectedCellType_ = 1;
 	}
-	//ゴール
+	// ゴール
 	if (ImGui::Selectable("Goal", selectedCellType_ == 2)) {
 		selectedCellType_ = 2;
 	}
-	//プレイヤー初期位置
+	// プレイヤー初期位置
 	if (ImGui::Selectable("Player Spawn", selectedCellType_ == 3)) {
 		selectedCellType_ = 3;
 	}
-	//可燃ブロック
+	// 可燃ブロック
 	if (ImGui::Selectable("Burnable Block", selectedCellType_ == 4)) {
 		selectedCellType_ = 4;
 	}
-	//網目ブロック
+	// 網目ブロック
 	if (ImGui::Selectable("Mesh Block", selectedCellType_ == 5)) {
 		selectedCellType_ = 5;
 	}
-	//炎
+	// 炎
 	if (ImGui::Selectable("Fire", selectedCellType_ == 6)) {
 		selectedCellType_ = 6;
 	}
-	//スイッチ
+	// スイッチ
 	if (ImGui::Selectable("Switch", selectedCellType_ == 7)) {
 		selectedCellType_ = 7;
 	}
-	//ドア
+	// ドア
 	if (ImGui::Selectable("Door", selectedCellType_ == 8)) {
 		selectedCellType_ = 8;
+	}
+	// 小ブロック
+	if (ImGui::Selectable("Small Block", selectedCellType_ == 9)) {
+		selectedCellType_ = 9;
 	}
 
 	ImGui::Separator();
@@ -425,7 +429,7 @@ void GameScene::DrawMapEditor() {
 
 	ImGui::SameLine();
 
-	//マップキャンバス
+	// マップキャンバス
 	ImGui::BeginChild("MapCanvas", ImVec2(0.0f, 0.0f), true, ImGuiWindowFlags_HorizontalScrollbar);
 
 	const int rowCount = mapChip_.GetRowCount();
@@ -454,32 +458,54 @@ void GameScene::DrawMapEditor() {
 
 		// マウスによる配置・消去
 		if (isHovered && isInsideMap) {
-			// 左クリック・ドラッグ：選択中のタイルを配置
-			if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 
-				int currentCell = mapChip_.GetCell(mouseRow, mouseColumn);
-				// 実際に配置するCSV値
-				int placeValue = selectedCellType_;
+			// マス内でのマウス位置
+			float localX = mousePos.x - (canvasPos.x + mouseColumn * cellSize);
+			float localY = mousePos.y - (canvasPos.y + mouseRow * cellSize);
 
-				if (selectedCellType_ == 7) {
-					// Switch
-					placeValue = 7000 + selectedGroupId_;
-				} else if (selectedCellType_ == 8) {
-					// Door
-					placeValue = 8000 + selectedGroupId_;
-				}
+			// 小ブロックの区画番号
+			// 0: 左上  1: 右上
+			// 2: 左下  3: 右下
+			int quadrant = 0;
 
-				if (currentCell != placeValue) {
-					mapChip_.SetCell(mouseRow, mouseColumn, placeValue);
-				}
+			if (localX >= cellSize * 0.5f) {
+				quadrant += 1;
 			}
-			// 右クリック：消去
-			if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
 
-				int currentCell = mapChip_.GetCell(mouseRow, mouseColumn);
+			if (localY >= cellSize * 0.5f) {
+				quadrant += 2;
+			}
 
-				if (currentCell != 0) {
+			// 左クリック
+			if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+				// Erase選択中ならマス全体を消去
+				if (selectedCellType_ == 0) {
+
 					mapChip_.SetCell(mouseRow, mouseColumn, 0);
+
+				}
+				// 小ブロックを配置
+				else if (selectedCellType_ == 9) {
+
+					mapChip_.SetSmallBlock(mouseRow, mouseColumn, quadrant, true);
+
+				}
+				// 通常タイルを配置
+				else {
+
+					int placeValue = selectedCellType_;
+
+					if (selectedCellType_ == 7) {
+						placeValue = 7000 + selectedGroupId_;
+					} else if (selectedCellType_ == 8) {
+						placeValue = 8000 + selectedGroupId_;
+					}
+
+					int currentCell = mapChip_.GetCell(mouseRow, mouseColumn);
+
+					if (currentCell != placeValue) {
+						mapChip_.SetCell(mouseRow, mouseColumn, placeValue);
+					}
 				}
 			}
 		}
@@ -532,13 +558,13 @@ void GameScene::DrawMapEditor() {
 					break;
 				}
 
-				//スイッチ
+				// スイッチ
 				if (cell >= 7001 && cell <= 7999) {
 					color = IM_COL32(180, 100, 220, 255);
 					std::snprintf(groupLabel, sizeof(groupLabel), "S%d", cell - 7000);
 					label = groupLabel;
 				}
-				//ドア
+				// ドア
 				else if (cell >= 8001 && cell <= 8999) {
 					color = IM_COL32(80, 120, 200, 255);
 					std::snprintf(groupLabel, sizeof(groupLabel), "D%d", cell - 8000);
@@ -556,6 +582,33 @@ void GameScene::DrawMapEditor() {
 					ImVec2 textSize = ImGui::CalcTextSize(label);
 					ImVec2 textPos(cellMin.x + (cellSize - textSize.x) * 0.5f, cellMin.y + (cellSize - textSize.y) * 0.5f);
 					drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), label);
+				}
+				// 小ブロックの描画
+				for (int quadrant = 0; quadrant < 4; ++quadrant) {
+
+					if (mapChip_.HasSmallBlock(row, column, quadrant)) {
+
+						ImVec2 smallMin = cellMin;
+						ImVec2 smallMax = cellMax;
+
+						float halfSize = cellSize * 0.5f;
+						// 左右の位置
+						if (quadrant % 2 == 1) {
+							smallMin.x += halfSize;
+						} else {
+							smallMax.x -= halfSize;
+						}
+						// 上下の位置
+						if (quadrant >= 2) {
+							smallMin.y += halfSize;
+						} else {
+							smallMax.y -= halfSize;
+						}
+						// 小ブロックの背景
+						drawList->AddRectFilled(smallMin, smallMax, IM_COL32(170, 170, 170, 255));
+						// 小ブロックの枠線
+						drawList->AddRect(smallMin, smallMax, IM_COL32(30, 30, 30, 255));
+					}
 				}
 			}
 		}

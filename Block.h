@@ -16,7 +16,7 @@ public:
 	~Block();
 
 	//初期化
-	void Initialize(const Vector3& position, bool isGoal = false,BlockType type = BlockType::Normal);
+	void Initialize(const Vector3& position, bool isGoal = false, BlockType type = BlockType::Normal, Vector3 scale = {1.0f,1.0f,1.0f});
     //共有モデル解放
 	static void FinalizeModels();
 	//更新

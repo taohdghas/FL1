@@ -10,6 +10,7 @@ using namespace KamataEngine;
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>
 
 class MapChip {
 public:
@@ -44,6 +45,9 @@ public:
 	bool LoadCSV(const std::string& csvPath);
 	// マスの値を変更
 	bool SetCell(int row, int column, int value);
+	// 小ブロックの配置・取得
+	bool SetSmallBlock(int row, int column, int quadrant, bool place);
+	bool HasSmallBlock(int row, int column, int quadrant) const;
 	// マスの値を取得
 	int GetCell(int row, int column) ;
 	// 行数を取得
@@ -68,6 +72,10 @@ private:
 	std::vector<std::vector<std::unique_ptr<Switch>>> switches_;
 	// ドア管理
 	std::vector<std::vector<std::unique_ptr<Door>>> doors_;
+	//小ブロックの配置データ
+	std::vector<std::vector<std::array<bool, 4>>> smallBlockData_;
+	//小ブロックの実体
+	std::vector<std::vector<std::array<std::unique_ptr<Block>, 4>>> smallBlocks_;
 	//ブロックの1マスのサイズ
 	float blockSize_ = 2.0f;
 	//プレイヤー開始位置
