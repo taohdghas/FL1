@@ -379,7 +379,6 @@ void MapChip::ResolveDoorCollision(Vector3& pos, const Vector3& prevPos, const V
 		for (size_t column = 0; column < doors_[row].size(); ++column) {
 
 			Door* door = doors_[row][column].get();
-
 			// Doorが存在しない、または開いている場合は無視
 			if (door == nullptr || door->IsOpen()) {
 				continue;
@@ -387,7 +386,6 @@ void MapChip::ResolveDoorCollision(Vector3& pos, const Vector3& prevPos, const V
 
 			const Vector3 doorPos = door->GetPosition();
 			const Vector3 doorHalf = door->GetHalfSize();
-
 			// 現在位置での重なり判定
 			const bool overlapX = std::abs(pos.x - doorPos.x) < (playerHalf.x + doorHalf.x);
 			const bool overlapY = std::abs(pos.y - doorPos.y) < (playerHalf.y + doorHalf.y);
@@ -396,7 +394,6 @@ void MapChip::ResolveDoorCollision(Vector3& pos, const Vector3& prevPos, const V
 			if (!(overlapX && overlapY && overlapZ)) {
 				continue;
 			}
-
 			// Doorの上下座標
 			const float doorTop = doorPos.y + doorHalf.y;
 			const float doorBottom = doorPos.y - doorHalf.y;
@@ -423,7 +420,6 @@ void MapChip::ResolveDoorCollision(Vector3& pos, const Vector3& prevPos, const V
 			}
 			// X方向・Z方向の衝突判定
 			if (prevOverlapY) {
-
 				// X軸で押し戻す
 				if (pos.x > doorPos.x) {
 					pos.x = doorPos.x + doorHalf.x + playerHalf.x;
@@ -470,11 +466,9 @@ bool MapChip::ResolveFireCollision(Player& player) {
 	const Vector3& playerPos = player.GetPosition();
 	const Vector3& playerHalf = player.GetHalfSize();
 	ElementType playerElement = player.GetElement();
-
 	// マップ上の火をすべて調べる
 	for (auto& row : fires_) {
 		for (auto& fire : row) {
-
 			// 火が存在しない、消えている場合は無視
 			if (!fire || fire->IsExtinguished()) {
 				continue;
@@ -486,7 +480,6 @@ bool MapChip::ResolveFireCollision(Player& player) {
 			bool overlapX = std::abs(playerPos.x - firePos.x) < (playerHalf.x + fireHalf.x);
 			bool overlapY = std::abs(playerPos.y - firePos.y) < (playerHalf.y + fireHalf.y);
 			bool overlapZ = std::abs(playerPos.z - firePos.z) < (playerHalf.z + fireHalf.z);
-
 			// 接触していなければ次の火を調べる
 			if (!overlapX || !overlapY || !overlapZ) {
 				continue;
@@ -496,7 +489,6 @@ bool MapChip::ResolveFireCollision(Player& player) {
 				fire->Extinguish();
 				continue;
 			}
-
 			// 水以外なら火に触れたことを通知
 			return true;
 		}
@@ -511,7 +503,6 @@ bool MapChip::SaveCSV(const std::string& csvPath) {
 	if (!file.is_open()) {
 		return false;
 	}
-
 	// 通常マップの内容を書き込む
 	for (size_t row = 0; row < mapData_.size(); ++row) {
 		for (size_t column = 0; column < mapData_[row].size(); ++column) {
@@ -524,7 +515,6 @@ bool MapChip::SaveCSV(const std::string& csvPath) {
 
 		file << '\n';
 	}
-
 	// 小ブロックの情報を書き込む
 	file << "#SMALL_BLOCKS\n";
 
@@ -568,12 +558,10 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 			readingSmallBlocks = true;
 			continue;
 		}
-
 		// 空行は無視
 		if (line.empty()) {
 			continue;
 		}
-
 		// 小ブロック情報を読み込む
 		if (readingSmallBlocks) {
 
@@ -619,7 +607,6 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 			if (!isValidValue) {
 				return false;
 			}
-
 			// プレイヤー開始位置の数を確認
 			if (value == 3) {
 				spawnCount++;
@@ -636,7 +623,6 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 		if (rowData.empty()) {
 			return false;
 		}
-
 		// 全行の列数が一致しているか確認
 		if (!newMapData.empty() && rowData.size() != newMapData[0].size()) {
 			return false;
@@ -650,19 +636,16 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 	if (newMapData.empty()) {
 		return false;
 	}
-
 	// 小ブロックの配置情報を検証
 	for (const auto& entry : newSmallBlockData) {
 
 		int row = entry[0];
 		int column = entry[1];
 		int quadrant = entry[2];
-
 		// マップ範囲と区画番号の確認
 		if (row < 0 || row >= static_cast<int>(newMapData.size()) || column < 0 || column >= static_cast<int>(newMapData[row].size()) || quadrant < 0 || quadrant >= 4) {
 			return false;
 		}
-
 		// 通常サイズのブロックと共存できない
 		int value = newMapData[row][column];
 
@@ -670,7 +653,6 @@ bool MapChip::LoadCSV(const std::string& csvPath) {
 			return false;
 		}
 	}
-
 	// CSV読み込み成功。マップデータを更新
 	mapData_ = std::move(newMapData);
 	// CSV読み込み時はマップ全体を再構築
@@ -896,7 +878,6 @@ bool MapChip::GetPlayerSpawnPosition(Vector3& position) {
 void MapChip::UpdateBlock(int row, int column) {
 
 	const int value = mapData_[row][column];
-
 	// 範囲チェック
 	blocks_[row][column].reset();
 	fires_[row][column].reset();
@@ -928,7 +909,6 @@ void MapChip::UpdateBlock(int row, int column) {
 		doors_[row][column]->Initialize(position, groupId, blockSize_);
 		return;
 	}
-
 	// ブロックの種類とゴール判定を決定
 	BlockType type = BlockType::Normal;
 	bool isGoal = false;
@@ -949,7 +929,6 @@ void MapChip::UpdateBlock(int row, int column) {
 	} else {
 		return;
 	}
-
 	// 既存ブロックの種類とゴール判定が同じなら何もしない
 	if (blocks_[row][column] && blocks_[row][column]->GetType() == type && blocks_[row][column]->IsGoal() == isGoal) {
 		return;
