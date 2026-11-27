@@ -74,14 +74,12 @@ void MapChip::Finalize() {
 }
 // Playerと各BlockのAABB衝突を解決する
 void MapChip::ResolvePlayerCollision(Player& player) {
-
 	// プレイヤーの現在位置と前フレーム位置
 	Vector3 pos = player.GetPosition();
 	const Vector3 prevPos = player.GetPreviousPosition();
 	const Vector3 playerHalf = player.GetHalfSize();
 
 	const ElementType playerElement = player.GetElement();
-
 	// 接地フラグ
 	bool grounded = false;
 	// 垂直速度
@@ -255,7 +253,6 @@ void MapChip::ResolveBlockCollision(Vector3& pos, const Vector3& prevPos, const 
 				if (candidateColumn > 0 && candidateColumn + 1 < static_cast<int>(blocks_[row].size())) {
 
 					const float targetX = candidateColumn * blockSize_;
-
 					// 隙間の中央付近にいる場合
 					if (std::abs(pos.x - targetX) < blockSize_ * 0.5f) {
 
@@ -276,7 +273,6 @@ void MapChip::ResolveBlockCollision(Vector3& pos, const Vector3& prevPos, const 
 					}
 				}
 			}
-
 			// 衝突判定のAABBの上下座標
 			const float blockTop = blockPos.y + blockHalf.y;
 			const float blockBottom = blockPos.y - blockHalf.y;

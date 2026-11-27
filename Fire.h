@@ -16,7 +16,6 @@ public:
 	static void FinalizeModel();
 	// 消えているか
 	bool IsExtinguished() const { return isExtinguished_; }
-
 	// 位置と当たり判定の取得
 	const Vector3& GetPosition() const { return position_; }
 	const Vector3& GetHalfSize() const { return halfSize_; }
