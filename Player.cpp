@@ -18,7 +18,8 @@ void Player::Initialize(const Vector3& position) {
 	model_ = Model::CreateFromOBJ("cube");
 
 	worldTransform_.Initialize();
-	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
+	normalScale_ = {1.0f, 1.0f, 1.0f};
+	worldTransform_.scale_ = normalScale_;
 	halfSize_ = {1.0f * worldTransform_.scale_.x, 1.0f * worldTransform_.scale_.y, 1.0f * worldTransform_.scale_.z};
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
@@ -48,13 +49,11 @@ void Player::Update() {
 	if (input->PushKey(DIK_D) || input->PushKey(DIK_RIGHT)) {
 		position_.x += moveSpeed_;
 	}
-
 	// 地面に接地しているときとプレイヤーが水状態でない場合にジャンプ可能
 	if (isGrounded_ && currentElement_ != ElementType::Water && currentElement_ != ElementType::Gas && input->TriggerKey(DIK_SPACE)) {
 		verticalVelocity_ = jumpPower_;
 		isGrounded_ = false;
 	}
-
 	//気体状態なら上昇それ以外なら重力
 	if (currentElement_ == ElementType::Gas) {
 		verticalVelocity_ = gasRiseSpeed_;
@@ -95,6 +94,23 @@ void Player::SetGrounded(bool grounded) { isGrounded_ = grounded; }
 void Player::SetElement(ElementType element) { 
 	currentElement_ = element; 
 
+	// 変更前の当たり判定サイズを保存
+	Vector3 oldHalfSize = halfSize_;
+
+	// 水なら縮小、それ以外なら通常サイズ
+	if (element == ElementType::Water) {
+		worldTransform_.scale_ = {normalScale_.x * waterScaleRate_, normalScale_.y * waterScaleRate_, normalScale_.z * waterScaleRate_};
+	} else {
+		worldTransform_.scale_ = normalScale_;
+	}
+
+	// 当たり判定を更新
+	halfSize_ = {worldTransform_.scale_.x, worldTransform_.scale_.y, worldTransform_.scale_.z};
+    // 接地中なら足元の位置を維持する
+	if (isGrounded_) {
+		position_.y += halfSize_.y - oldHalfSize.y;
+	}
+
 	switch (currentElement_) {
 	case ElementType::None:
 		objectColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
@@ -111,7 +127,6 @@ void Player::SetElement(ElementType element) {
 		// 石：灰色
 		objectColor_.SetColor({0.5f, 0.5f, 0.5f, 1.0f});
 		break;
-
 	case ElementType::Gas:
 		// 気体：緑
 		objectColor_.SetColor({0.0f, 1.0f, 0.3f, 1.0f});
@@ -122,4 +137,7 @@ void Player::SetElement(ElementType element) {
 		objectColor_.SetColor({1.0f, 1.0f, 0.0f, 1.0f});
 		break;
 	}
+	worldTransform_.translation_ = position_;
+	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
+	worldTransform_.TransferMatrix();
 }

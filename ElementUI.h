@@ -21,7 +21,8 @@ public:
 	ElementType Update(const Vector2& playerScreenPosition);
 	//パネルを追加
 	bool AddPanel(ElementType type, const std::string& texturePath, const Vector2& position, const Vector2& size);
-
+	//エレメント解除を取得
+	bool IsClearRequested();
 private:
 	// ドラッグ中かどうか
 	bool IsInside(const Vector2& point, const Vector2& center, const Vector2& halfSize);
@@ -45,5 +46,6 @@ private:
 	Vector2 playerDropHalfSize_ = {60.0f, 60.0f};
 	bool isDragging_ = false;    // ドラッグ中かどうか
 	bool isInitialized_ = false; // 初期化済みかどうか
-	bool isPlayerHovered_ = false;
+	bool isPlayerHovered_ = false; // プレイヤーが浮いているか
+	bool isClearRequested_ = false;//エレメント解除
 };

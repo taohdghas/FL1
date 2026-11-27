@@ -11,11 +11,11 @@ Model* Block::meshModel_ = nullptr;
 
 Block::~Block() {}
 //初期化
-void Block::Initialize(const Vector3& position, bool isGoal, BlockType type) {
+void Block::Initialize(const Vector3& position, bool isGoal, BlockType type,Vector3 scale) {
 	position_ = position;
 	type_ = type;
 	isActive_ = true;
-  isGoal_ = isGoal;
+    isGoal_ = isGoal;
     // 通常
     if (normalModel_ == nullptr) {
         normalModel_ = Model::CreateFromOBJ("cube");
@@ -28,7 +28,6 @@ void Block::Initialize(const Vector3& position, bool isGoal, BlockType type) {
 	if (meshModel_ == nullptr) {
         meshModel_ = Model::CreateFromOBJ("mesh");
 	}
-
     // ゴール
     if (isGoal_) {
         goalModel_ = Model::CreateFromOBJ("cube");
@@ -36,13 +35,12 @@ void Block::Initialize(const Vector3& position, bool isGoal, BlockType type) {
 
 	worldTransform_.Initialize();
 	// 見た目は元のサイズのまま
-	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
+	worldTransform_.scale_ = scale;
 	worldTransform_.translation_ = position_;
 	worldTransform_.matWorld_ = MyMath::MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
-
 	// 衝突判定のAABBはグリッド1マス分に合わせる
-	halfSize_ = {1.0f * worldTransform_.scale_.x, 1.0f * worldTransform_.scale_.y, 1.0f * worldTransform_.scale_.z};
+	halfSize_ = {1.0f * scale.x, 1.0f * scale.y, 1.0f * scale.z};
 
 	isInitialized_ = true;
 }
