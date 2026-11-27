@@ -92,6 +92,8 @@ void MapChip::ResolvePlayerCollision(Player& player) {
 	CorrectMeshGapPosition(pos, prevPos, playerHalf);
 	// Blockとの衝突判定
 	ResolveBlockCollision(pos, prevPos, playerHalf, playerElement, moveY, newVerticalVelocity, grounded);
+	//小ブロックとの衝突判定
+	ResolveSmallBlockCollision(pos, prevPos, playerHalf, moveY, newVerticalVelocity, grounded);
 	// Doorとの衝突判定
 	ResolveDoorCollision(pos, prevPos, playerHalf, newVerticalVelocity, grounded);
 	// 解決後の位置を反映
@@ -305,6 +307,65 @@ void MapChip::ResolveBlockCollision(Vector3& pos, const Vector3& prevPos, const 
 					pos.x = blockPos.x + blockHalf.x + playerHalf.x;
 				} else {
 					pos.x = blockPos.x - blockHalf.x - playerHalf.x;
+				}
+			}
+		}
+	}
+}
+// Playerと小ブロックのAABB衝突判定
+void MapChip::ResolveSmallBlockCollision(Vector3& pos, const Vector3& prevPos, const Vector3& playerHalf, float moveY, float& newVerticalVelocity, bool& grounded) {
+
+	const float epsilon = 0.0001f;
+
+	for (size_t row = 0; row < smallBlocks_.size(); ++row) {
+		for (size_t column = 0; column < smallBlocks_[row].size(); ++column) {
+			for (int quadrant = 0; quadrant < 4; ++quadrant) {
+
+				Block* block = smallBlocks_[row][column][quadrant].get();
+
+				if (block == nullptr || !block->IsActive()) {
+					continue;
+				}
+
+				const Vector3 blockPos = block->GetPosition();
+				const Vector3 blockHalf = block->GetHalfSize();
+				// 現在位置での重なり判定
+				const bool overlapX = std::abs(pos.x - blockPos.x) < (playerHalf.x + blockHalf.x);
+				const bool overlapY = std::abs(pos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
+				const bool overlapZ = std::abs(pos.z - blockPos.z) < (playerHalf.z + blockHalf.z);
+
+				if (!(overlapX && overlapY && overlapZ)) {
+					continue;
+				}
+
+				const float blockTop = blockPos.y + blockHalf.y;
+				const float blockBottom = blockPos.y - blockHalf.y;
+				// 上から落下してきたか
+				const bool hitFloor = moveY < 0.0f && (prevPos.y - playerHalf.y >= blockTop - epsilon) && (pos.y - playerHalf.y < blockTop);
+				// 下から上昇してきたか
+				const bool hitCeiling = moveY > 0.0f && (prevPos.y + playerHalf.y <= blockBottom + epsilon) && (pos.y + playerHalf.y > blockBottom);
+				// 着地
+				if (hitFloor) {
+					pos.y = blockTop + playerHalf.y;
+					newVerticalVelocity = 0.0f;
+					grounded = true;
+					continue;
+				}
+				// 頭打ち
+				if (hitCeiling) {
+					pos.y = blockBottom - playerHalf.y;
+					newVerticalVelocity = 0.0f;
+					continue;
+				}
+				// 横方向の押し戻し
+				const bool prevOverlapY = std::abs(prevPos.y - blockPos.y) < (playerHalf.y + blockHalf.y);
+
+				if (prevOverlapY) {
+					if (pos.x > blockPos.x) {
+						pos.x = blockPos.x + blockHalf.x + playerHalf.x;
+					} else {
+						pos.x = blockPos.x - blockHalf.x - playerHalf.x;
+					}
 				}
 			}
 		}

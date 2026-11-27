@@ -30,6 +30,9 @@ public:
 	// PlayerとブロックのAABB衝突判定
 	void ResolveBlockCollision(Vector3& pos, const Vector3& prevPos, const Vector3& playerHalf,
 		ElementType playerElement, float moveY, float& newVerticalVelocity, bool& grounded);
+	// Playerと小ブロックのAABB衝突判定
+	void ResolveSmallBlockCollision(Vector3& pos, const Vector3& prevPos, const Vector3& playerHalf, 
+		float moveY, float& newVerticalVelocity, bool& grounded);
 	// PlayerとドアのAABB衝突判定
 	void ResolveDoorCollision(Vector3&pos,const Vector3&prevPos,const Vector3&playerHalf,
 		float&newVerticalVelocity,bool & grounded);
